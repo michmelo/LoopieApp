@@ -2,6 +2,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />  <!--permite ejecutar en emuladores sin cámara física-->
+
+    <uses-permission android:name="android.permission.CAMERA" /> <!--permiso para tomar fotos con la cámara.-->
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> <!--lectura de imágenes sin scope storage tradicional-->
+
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -22,6 +29,20 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>
+
+    <!--
+    FileProvider: expone URIs seguras (content://) para brindar acceso temporal a la app de cámara.
+    @xml/file_paths: define qué rutas puede exponer el FileProvider
+    -->

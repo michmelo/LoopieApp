@@ -1,5 +1,13 @@
 package com.example.loopieapp.View
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.icu.text.SimpleDateFormat
+import android.net.Uri
+import android.os.Environment
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.twotone.Storefront
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
@@ -20,22 +28,27 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
+import com.example.loopieapp.Components.ImagenInteligente
 import com.example.loopieapp.R
+import com.example.loopieapp.ViewModel.PerfilViewModel
+import java.io.File
+import java.util.Date
+import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+
 @Composable
 fun Perfil(
     navController: NavController
 ) {
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Mi Perfil") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xff847996),
-                    titleContentColor = Color.White
-                )
+            CenterAlignedTopAppBarComponent(
+                title ="Mi Perfil"
             )
         }
     ) { innerPadding ->
@@ -66,23 +79,23 @@ fun Perfil(
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop
                     )
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Text(
                         text = "Usuario Demo",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.Bold
                     )
-                    
+
                     Text(
                         text = "usuario@loopie.com",
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.Gray
                     )
-                    
+
                     Spacer(modifier = Modifier.height(8.dp))
-                    
+
                     // Badge de vendedor
                     Card(
                         colors = CardDefaults.cardColors(containerColor = Color(0xffe8f5e8))
@@ -117,21 +130,21 @@ fun Perfil(
                     descripcion = "Gestiona tus productos y ventas",
                     onClick = { navController.navigate("PanelVendedor") }
                 )
-                
+
                 OpcionPerfil(
                     icono = Icons.Default.ShoppingCart,
                     titulo = "Mis Compras",
                     descripcion = "Historial de compras realizadas",
                     onClick = { /* TODO: Implementar navegación a compras */ }
                 )
-                
+
                 OpcionPerfil(
                     icono = Icons.Default.Favorite,
                     titulo = "Favoritos",
                     descripcion = "Productos que te gustan",
                     onClick = { /* TODO: Implementar navegación a favoritos */ }
                 )
-                
+
                 OpcionPerfil(
                     icono = Icons.Default.Settings,
                     titulo = "Configuración",
@@ -145,7 +158,7 @@ fun Perfil(
 
             // Botón de cerrar sesión
             Button(
-                onClick = { 
+                onClick = {
                     // TODO: Implementar lógica de logout
                     navController.navigate("HomeScreen") {
                         popUpTo("HomeScreen") { inclusive = true }
@@ -221,8 +234,63 @@ fun OpcionPerfil(
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun PerfilPreview() {
-    Perfil(navController = NavController(LocalContext.current))
+fun PerfilScreen(viewModel: PerfilViewModel = viewModel()) {
+    val context = LocalContext.current
+    val imagenUri by viewModel.imagenUri.collectAsState()
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        viewModel.setImage(uri)
+    }
+    var cameraUri by remember { mutableStateOf<Uri?>(null) }
+    val takePictureLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicture()
+    ) { success ->
+        if (success) viewModel.setImage(cameraUri)
+    }
+    fun createImageUri(context: Context): Uri {
+        val timestamp = SimpleDateFormat(
+            "yyyyMMdd_HHmmss",
+            Locale.getDefault()
+        ).format(Date())
+        val storageDir = context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)
+        val file = File.createTempFile("JPEG_${timestamp}_", ".jpg", storageDir)
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider",
+            file)
+    }
+    val requestCameraPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            val uri = createImageUri(context)
+            cameraUri = uri
+            takePictureLauncher.launch(uri)
+        }
+    }
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        ImagenInteligente(imagenUri)
+        Spacer(Modifier.height(24.dp))
+        Button(onClick = { pickImageLauncher.launch("image/*") }) {
+            Text("Seleccionar desde galería")
+        }
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = {
+            when (PackageManager.PERMISSION_GRANTED) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ->
+                {
+                    val uri = createImageUri(context)
+                    cameraUri = uri
+                    takePictureLauncher.launch(uri)
+                }
+                else -> requestCameraPermission.launch(Manifest.permission.CAMERA)
+            }
+        }) {
+            Text("Tomar foto con cámara")
+        }
+    }
 }

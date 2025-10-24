@@ -28,28 +28,49 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.ViewModel
 import androidx.navigation.compose.rememberNavController
+import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
+import com.example.loopieapp.Model.AppDatabase
+import com.example.loopieapp.Repository.UsuarioRepository
 import com.example.loopieapp.ViewModel.UsuarioViewModel
+import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 
 @Composable
 fun InicioSesion(
     navController : NavController,
-    viewModel : UsuarioViewModel = viewModel()
+    //viewModel : UsuarioViewModel = viewModel()
 ) {
-
+    val context = LocalContext.current.applicationContext
+    val factory = remember {
+        UsuarioViewModelFactory(
+            UsuarioRepository(
+                AppDatabase.getDatabase(context).usuarioDao()
+            )
+        )
+    }
+    val viewModel: UsuarioViewModel = viewModel(factory = factory)
     val estado by viewModel.estado.collectAsState()
 
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text(
+    Scaffold (
+        topBar = {
+            CenterAlignedTopAppBarComponent(
+                title = "Inicio de Sesión",
+                onBackClick = { navController.popBackStack() })
+        }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .padding(innerPadding)
+                .fillMaxSize()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
             text = "Inicio de Sesión",
             fontWeight = FontWeight.Bold,
             fontSize = 24.sp,
@@ -59,60 +80,55 @@ fun InicioSesion(
             color = Color(0xff310a31),
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center
-        )
+            )
 
-        //Campo para el correo
-        OutlinedTextField(
-            value = estado.correo,
-            onValueChange = viewModel::onCorreoChange,
-            label = { Text("Correo") },
-            isError = estado.errores.correo != null,
-            supportingText = {
-                estado.errores.correo?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
+            //Campo para el correo
+            OutlinedTextField(
+                value = estado.correo,
+                onValueChange = viewModel::onCorreoChange,
+                label = { Text("Ingrese correo") },
+                isError = estado.errores.correo != null,
+                supportingText = {
+                    estado.errores.correo?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        //Campo para la contraseña
-        OutlinedTextField(
-            value = estado.clave,
-            onValueChange = viewModel::onClaveChange,
-            label = { Text("Contraseña") },
-            visualTransformation = PasswordVisualTransformation(),
-            isError = estado.errores.clave != null,
-            supportingText = {
-                estado.errores.clave?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
+            //Campo para la contraseña
+            OutlinedTextField(
+                value = estado.clave,
+                onValueChange = viewModel::onClaveChange,
+                label = { Text("Ingrese contraseña") },
+                visualTransformation = PasswordVisualTransformation(),
+                isError = estado.errores.clave != null,
+                supportingText = {
+                    estado.errores.clave?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        Button(
-            onClick = {
-                if (viewModel.validarInicioSesion()) {
-                    navController.navigate("Perfil")
-                }
-            },
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xff847996),
-                contentColor = Color.White
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Iniciar Sesión")
+            Button(
+                onClick = {
+                    if (viewModel.validarInicioSesion()) {
+                        navController.navigate("Perfil")
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0xff847996),
+                    contentColor = Color.White
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Iniciar Sesión")
+            }
         }
     }
-}
-
-@Preview (showBackground = true)
-@Composable
-fun InicioSesionPreview(){
-    InicioSesion(navController = rememberNavController())
 }

@@ -34,6 +34,7 @@ import com.example.loopieapp.ViewModel.EstadoViewModel
 
 @Composable
 fun PantallaPrincipal(navController: NavController){
+
     /*
     // Botón para acceder al Perfil
     Button(

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -26,16 +27,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
 import com.example.loopieapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentro de los parametros
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("") })
-        }
-    ) { innerPadding ->
+    Scaffold { innerPadding ->
         Column(
             modifier = Modifier
                 .padding(innerPadding)
@@ -57,17 +55,18 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 16.dp)
             )
-            Row (
+            Row(
                 modifier = Modifier.fillMaxWidth(), //Row ocupa todo el ancho
                 horizontalArrangement = Arrangement.SpaceEvenly //Distribuye los botones uniformemente
-            ){
+            ) {
                 Button(
                     onClick = { navController.navigate("InicioSesion") },
                     colors = ButtonDefaults.buttonColors(
                         Color(0xff847996),
                         Color.White
                     ),
-                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
+                    modifier = Modifier.weight(1f)
+                        .padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
                 ) { Text("Iniciar Sesión") }
                 Button(
                     onClick = { navController.navigate("FormularioRegistro") },
@@ -75,18 +74,13 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
                         Color(0xff847996),
                         Color.White
                     ),
-                    modifier = Modifier.weight(1f).padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
+                    modifier = Modifier.weight(1f)
+                        .padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
                 ) { Text("Registrarse") }
             }
-            
+
             Spacer(modifier = Modifier.height(16.dp))
 
         }
     }
-}
-
-@Preview (showBackground = true)
-@Composable
-fun HomeScreenPreview(){
-    HomeScreen(navController = NavController(context = LocalContext.current))
 }

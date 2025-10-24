@@ -3,11 +3,15 @@ package com.example.loopieapp.ViewModel
 import UsuarioErrores
 import UsuarioUIState
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.loopieapp.Model.Usuario
+import com.example.loopieapp.Repository.UsuarioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
-class UsuarioViewModel : ViewModel(){
+class UsuarioViewModel (private val repository: UsuarioRepository): ViewModel(){
     private val _estado = MutableStateFlow(UsuarioUIState())
     val estado : StateFlow<UsuarioUIState> = _estado
 
@@ -82,5 +86,21 @@ class UsuarioViewModel : ViewModel(){
 
         // Devuelve 'true' si NO hay errores
         return !hayErrores
+    }
+    fun guardarUsuario() {
+        val estadoActual = _estado.value
+        if (validarFormulario()) {
+            viewModelScope.launch {
+                val nuevoUsuario = Usuario(
+                    nombre = estadoActual.nombre,
+                    apellido = estadoActual.apellido,
+                    correo = estadoActual.correo,
+                    clave = estadoActual.clave,
+                    direccion = estadoActual.direccion,
+                    //aceptaTerminos = estadoActual.aceptaTerminos
+                )
+                repository.insertar(nuevoUsuario)
+            }
+        }
     }
 }

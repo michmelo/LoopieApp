@@ -1,4 +1,4 @@
-package com.example.loopieapp.Model
+package com.example.loopieapp.ViewModel
 
 data class ProductoUIState(
     val nombre: String = "",
