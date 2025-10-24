@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.ViewModel
 import androidx.navigation.compose.rememberNavController
-import com.example.loopieapp.ViewModel.AuthViewModel
 import com.example.loopieapp.ViewModel.UsuarioViewModel
 
 @Composable
@@ -98,7 +97,7 @@ fun InicioSesion(
         Button(
             onClick = {
                 if (viewModel.validarInicioSesion()) {
-                    navController.navigate("PantallaPrincipal")
+                    navController.navigate("Perfil")
                 }
             },
             colors = ButtonDefaults.buttonColors(

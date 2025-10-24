@@ -33,51 +33,19 @@ import androidx.navigation.NavController
 import com.example.loopieapp.ViewModel.EstadoViewModel
 
 @Composable
-fun PantallaPrincipal(modifier: Modifier = Modifier, viewModel: EstadoViewModel = viewModel()) {
-    val estado = viewModel.activo.collectAsState()
-    val mostrarMensaje = viewModel.mostrarMensaje.collectAsState()
-    if (estado.value == null) {
-        Box(
-            modifier = modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            CircularProgressIndicator()
-        }
-    } else {
-        val estaActivo = estado.value!!
-        val colorAnimado by animateColorAsState(
-            targetValue = if (estaActivo) Color(color = 0xFF4CAF50) else Color(color = 0xFFB0BEC5),
-            animationSpec = tween(durationMillis = 500), label = ""
-        )
-        val textoBoton by remember(key1 = estaActivo) {
-            derivedStateOf { if (estaActivo) "Desactivar" else "Activar" }
-        }
-        Column(
-            modifier = modifier
-                .fillMaxSize()
-                .padding(all = 32.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Button(
-                onClick = { viewModel.alternarEstado() },
-                colors = ButtonDefaults.buttonColors(containerColor = colorAnimado),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(height = 60.dp)
-            ) {
-                Text(text = textoBoton, style = MaterialTheme.typography.titleLarge)
-            }
-            Spacer(modifier = Modifier.height(height = 24.dp))
-
-            AnimatedVisibility(visible = mostrarMensaje.value) {
-                Text(
-                    text = "¡Estado guardado exitosamente!",
-                    color = Color(color = 0xFF4CAF50),
-                    style = MaterialTheme.typography.bodyLarge
-                )
-            }
-        }
+fun PantallaPrincipal(navController: NavController){
+    /*
+    // Botón para acceder al Perfil
+    Button(
+        onClick = { navController.navigate("Perfil") },
+        colors = ButtonDefaults.buttonColors(
+            Color(0xff4caf50),
+            Color.White
+        ),
+        modifier = Modifier.fillMaxWidth()
+    ) { 
+        Text("Mi Perfil") 
     }
+    */
 }
 

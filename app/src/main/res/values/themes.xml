@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
-    <style name="Theme.LoopieApp" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.LoopieApp" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Colores principales -->
+        <item name="android:colorPrimary">@color/primary_color</item>
+        <item name="android:colorSecondary">@color/accent_color</item>
+        
+        <!-- Colores de fondo -->
+        <item name="android:colorBackground">@color/background_color</item>
+        
+        <!-- Colores de texto -->
+        <item name="android:textColorPrimary">@color/primary_color</item>
+        <item name="android:textColorSecondary">@color/secondary_color</item>
+        
+        <!-- Colores de acento -->
+        <item name="android:colorAccent">@color/pink_accent</item>
+    </style>
 </resources>

@@ -5,6 +5,4 @@ data class UsuarioErrores(
     val clave : String? = null,
     val confirmarClave : String? = null,
     val direccion : String? = null
-){
-    
-}
+)

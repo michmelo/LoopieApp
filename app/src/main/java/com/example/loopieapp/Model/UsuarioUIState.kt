@@ -7,4 +7,4 @@ data class UsuarioUIState(
     val direccion : String = "",
     val aceptaTerminos : Boolean = false,
     val errores : UsuarioErrores = UsuarioErrores()
-){}
+)

@@ -4,12 +4,12 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
@@ -78,6 +78,9 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
                     modifier = Modifier.weight(1f).padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
                 ) { Text("Registrarse") }
             }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+
         }
     }
 }
@@ -85,5 +88,5 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
 @Preview (showBackground = true)
 @Composable
 fun HomeScreenPreview(){
-    HomeScreen(navController = NavController(context = LocalContext.current)) // Comentado porque requiere NavController
+    HomeScreen(navController = NavController(context = LocalContext.current))
 }

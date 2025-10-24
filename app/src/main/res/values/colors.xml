@@ -1,10 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
+    <!-- Paleta de colores principal de LoopieApp -->
+    <color name="primary_color">#310a31</color>      <!-- Morado oscuro - textos principales -->
+    <color name="secondary_color">#847996</color>    <!-- Gris morado - elementos secundarios -->
+    <color name="accent_color">#88b7b5</color>       <!-- Verde azulado - acentos y bordes -->
+    <color name="light_color">#a7cab1</color>        <!-- Verde claro - fondos suaves -->
+    <color name="background_color">#f4ecd6</color>   <!-- Beige claro - fondo principal -->
+    <color name="input_bg_color">#FCFCFF</color>     <!-- Blanco suave - fondo de inputs -->
+    <color name="pink_accent">#db6a8b</color>        <!-- Rosa/magenta - acentos destacados -->
+    
+    <!-- Colores adicionales para compatibilidad -->
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

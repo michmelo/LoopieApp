@@ -112,7 +112,7 @@ fun FormularioRegistro(
             onValueChange = viewModel::onConfirmarClaveChange,
             label = { Text("Confirmar contraseña") },
             visualTransformation = PasswordVisualTransformation(),
-            isError = estado.errores.clave != null,
+            isError = estado.errores.confirmarClave != null,
             supportingText = {
                 estado.errores.confirmarClave?.let {
                     Text(it, color = MaterialTheme.colorScheme.error)
@@ -144,12 +144,12 @@ fun FormularioRegistro(
 
         Button(
             onClick = { if (viewModel.validarFormulario()) {
-                    navController.navigate("PantallaPrincipal") } },
+                    navController.navigate("Perfil") } },
             colors = ButtonDefaults.buttonColors(
                 Color(0xff847996),
                 Color.White
             ),
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth() 
         ) {
             Text("Registrarse")
         }
