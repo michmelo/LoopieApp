@@ -28,13 +28,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.loopieapp.ViewModel.EstadoViewModel
 
 @Composable
 fun PantallaPrincipal(navController: NavController){
-
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("¡Bienvenido a Loopie!", fontSize = 24.sp)
+        // Aquí es donde en el futuro mostrarás la lista de productos, etc.
+    }
     /*
     // Botón para acceder al Perfil
     Button(

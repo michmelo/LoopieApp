@@ -33,8 +33,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
 import androidx.lifecycle.ViewModel
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.rememberNavController
 import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
+import com.example.loopieapp.Components.Destinos
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Repository.UsuarioRepository
 import com.example.loopieapp.ViewModel.UsuarioViewModel
@@ -118,7 +120,15 @@ fun InicioSesion(
             Button(
                 onClick = {
                     if (viewModel.validarInicioSesion()) {
-                        navController.navigate("Perfil")
+                        // ✅ NAVEGACIÓN CORREGIDA DESPUÉS DEL LOGIN
+                        navController.navigate(Destinos.PANTALLAPRINCIPAL.route) {
+                            // Limpia toda la pila de navegación hasta la pantalla de inicio del grafo
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true // También elimina la pantalla de inicio (HomeScreen)
+                            }
+                            // Asegúrate de que solo haya una instancia de la pantalla principal
+                            launchSingleTop = true
+                        }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
