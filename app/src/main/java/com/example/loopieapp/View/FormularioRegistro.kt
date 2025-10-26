@@ -168,7 +168,16 @@ fun FormularioRegistro(
                        onCheckedChange = viewModel::onAceptaTerminosChange
                    )
                    Spacer(Modifier.width(8.dp))
-                   Text("Acepto los términos y condiciones")
+
+                   val colorTextoTerminos = if (estado.errores.aceptaTerminos != null) {
+                       MaterialTheme.colorScheme.error
+                   } else {
+                       MaterialTheme.colorScheme.onSurface
+                   }
+                   Text(
+                       text = "Acepto los términos y condiciones",
+                       color = colorTextoTerminos
+                   )
                }
            }
             item {

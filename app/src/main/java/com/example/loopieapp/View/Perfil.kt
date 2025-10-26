@@ -87,7 +87,6 @@ fun Perfil(
 
     val requestCameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
         if (isGranted) {
-            // Fix: Pass the context to the function call
             val newUri = createImageUri(context)
             cameraUri = newUri
             takePictureLauncher.launch(newUri)
@@ -115,7 +114,7 @@ fun Perfil(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(
-                        modifier = Modifier.clickable { }
+                        modifier = Modifier.clickable {pickImageLauncher.launch("image/*") }
                     ) {
                         val imagenUri = usuario?.fotoPerfilUri?.let { Uri.parse(it) }
                         ImagenInteligente(
@@ -130,11 +129,13 @@ fun Perfil(
 
                     Column {
                         Text(
-                            text = usuario?.let { "${it.nombre} ${it.apellido}" } ?: "Cargando...",                            style = MaterialTheme.typography.headlineSmall,
+                            text = usuario?.let { "${it.nombre} ${it.apellido}" } ?: "Cargando...",
+                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = usuario?.correo ?: "cargando...",                            style = MaterialTheme.typography.bodyMedium,
+                            text = usuario?.correo ?: "cargando...",
+                            style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
 
@@ -195,7 +196,8 @@ fun Perfil(
                     onClick = {
                         val userEmail = usuario?.correo
                         if (userEmail != null) {
-                            navController.navigate(Destinos.PANEL_VENDEDOR.route)
+                            val rutaCompleta = Destinos.PANEL_VENDEDOR.route.replace("{correo}", userEmail)
+                            navController.navigate(rutaCompleta)
                         }
                     }
                 )
@@ -241,6 +243,8 @@ fun Perfil(
                     icono = Icons.AutoMirrored.Filled.ExitToApp,
                     isDestructive = true,
                     onClick = {
+                        viewModel.cerrarSesion()
+
                         navController.navigate("HomeScreen") {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 inclusive = true
