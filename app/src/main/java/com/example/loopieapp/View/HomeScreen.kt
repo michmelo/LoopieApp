@@ -1,5 +1,9 @@
 package com.example.loopieapp.View
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -17,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -32,7 +37,26 @@ import com.example.loopieapp.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentro de los parametros
+fun HomeScreen(navController : NavController) {
+
+    val requestPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted: Boolean ->
+            if (isGranted) {
+                // Permiso concedido.
+            } else {
+                // Permiso denegado. No se mostrarán notificaciones.
+            }
+        }
+    )
+    LaunchedEffect(Unit) {
+        // Solo pide el permiso en Android 13 (TIRAMISU) o superior.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+
     Scaffold { innerPadding ->
         Column(
             modifier = Modifier
@@ -65,7 +89,8 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
                         Color(0xff847996),
                         Color.White
                     ),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
                 ) { Text("Iniciar Sesión") }
                 Button(
@@ -74,7 +99,8 @@ fun HomeScreen(navController : NavController) { //llamamos al navcontrollerdentr
                         Color(0xff847996),
                         Color.White
                     ),
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
                         .padding(horizontal = 4.dp) //Cada botón ocupa el mismo espacio
                 ) { Text("Registrarse") }
             }

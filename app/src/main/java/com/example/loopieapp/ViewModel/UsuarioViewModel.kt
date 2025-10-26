@@ -19,6 +19,7 @@ import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
 import com.example.loopieapp.Data.PreferenciasUsuario
 import com.example.loopieapp.Model.AppDatabase
+import com.example.loopieapp.Services.NotificationService
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -33,6 +34,8 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
 
     private val _isLoading = MutableStateFlow(true) // Empieza como 'true' porque estamos cargando
     val isLoading = _isLoading.asStateFlow()
+
+    private val notificationService = NotificationService(application)
 
     init {
         // Obtenemos el DAO y creamos el repositorio DENTRO del init.
@@ -153,6 +156,9 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                         direccion = estadoActual.direccion
                 )
                 repository.insertar(nuevoUsuario)
+
+                notificationService.mostrarNotificacionRegistroExitoso()
+
             }
         }
     }

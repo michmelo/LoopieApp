@@ -8,6 +8,8 @@
 
     <uses-permission android:name="android.permission.CAMERA" /> <!--permiso para tomar fotos con la cámara.-->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> <!--lectura de imágenes sin scope storage tradicional-->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.VIBRATE" />
 
     <application
         android:name=".LoopieApp"
