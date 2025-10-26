@@ -26,6 +26,7 @@ import com.example.loopieapp.ViewModel.ProductoViewModel
 @Composable
 fun PanelVendedor(
     navController: NavController,
+    correoUsuario: String,
     viewModel: ProductoViewModel = viewModel())
 {
 

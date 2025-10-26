@@ -11,6 +11,8 @@ import com.example.loopieapp.Model.Usuario
 interface UsuarioDAO {
     @Query("SELECT * FROM usuarios ORDER BY id DESC")
     suspend fun obtenerUsuarios(): List<Usuario>
+    @Query("UPDATE usuarios SET fotoPerfilUri = :uri WHERE id = :usuarioId")
+    suspend fun actualizarFotoPerfil(usuarioId: Int, uri: String?)
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertar(usuario: Usuario)
     @Delete

@@ -2,47 +2,48 @@ package com.example.loopieapp.ViewModel
 
 import UsuarioErrores
 import UsuarioUIState
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.ContentResolver
+import android.net.Uri
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.loopieapp.Model.Usuario
 import com.example.loopieapp.Repository.UsuarioRepository
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.io.File
+import java.io.FileOutputStream
+import androidx.lifecycle.ViewModel
+import com.example.loopieapp.Model.AppDatabase
 
-class UsuarioViewModel (private val repository: UsuarioRepository): ViewModel(){
+class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val repository: UsuarioRepository
+
+    init {
+        // Obtenemos el DAO y creamos el repositorio DENTRO del init.
+        val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
+        repository = UsuarioRepository(usuarioDao)
+    }
+
     private val _estado = MutableStateFlow(UsuarioUIState())
-    val estado : StateFlow<UsuarioUIState> = _estado
+    val estado = _estado.asStateFlow()
 
-    fun onNombreChange (valor : String){
-        _estado.update {it.copy(nombre = valor, errores = it.errores.copy(nombre = null))}
-    }
+    private val _usuarioActivo = MutableStateFlow<Usuario?>(null)
+    val usuarioActivo = _usuarioActivo.asStateFlow()
 
-    fun onApellidoChange (valor : String){
-        _estado.update {it.copy(apellido = valor, errores = it.errores.copy(apellido = null))}
-    }
+    //Funciones para el formualario
+    fun onNombreChange (valor : String){ _estado.update {it.copy(nombre = valor, errores = it.errores.copy(nombre = null))} }
+    fun onApellidoChange (valor : String){ _estado.update {it.copy(apellido = valor, errores = it.errores.copy(apellido = null))} }
+    fun onCorreoChange (valor : String){ _estado.update {it.copy(correo = valor, errores = it.errores.copy(correo = null))} }
+    fun onClaveChange (valor : String){ _estado.update {it.copy(clave = valor, errores = it.errores.copy(clave = null))} }
+    fun onConfirmarClaveChange (valor : String){ _estado.update {it.copy(confirmarClave = valor, errores = it.errores.copy(confirmarClave = null))} }
+    fun onDireccionChange (valor : String){ _estado.update {it.copy(direccion = valor, errores = it.errores.copy(direccion = null))} }
+    fun onAceptaTerminosChange(valor : Boolean){ _estado.update {it.copy(aceptaTerminos = valor)} }
 
-    fun onCorreoChange (valor : String){
-        _estado.update {it.copy(correo = valor, errores = it.errores.copy(correo = null))}
-    }
-
-    fun onClaveChange (valor : String){
-        _estado.update {it.copy(clave = valor, errores = it.errores.copy(clave = null))}
-    }
-
-    fun onConfirmarClaveChange (valor : String){
-        _estado.update {it.copy(confirmarClave = valor, errores = it.errores.copy(confirmarClave = null))}
-    }
-
-    fun onDireccionChange (valor : String){
-        _estado.update {it.copy(direccion = valor, errores = it.errores.copy(direccion = null))}
-    }
-
-    fun onAceptaTerminosChange(valor : Boolean){
-        _estado.update {it.copy(aceptaTerminos = valor)}
-    }
-
+    // Validaciones formulario
     fun validarFormulario() : Boolean {
         val estadoActual = _estado.value
         val errores = UsuarioErrores(
@@ -68,6 +69,7 @@ class UsuarioViewModel (private val repository: UsuarioRepository): ViewModel(){
         return !hayErrores
     }
 
+    //Validaciones inicio sesion
     fun validarInicioSesion(): Boolean {
         val estadoActual = _estado.value
         val errores = UsuarioErrores(
@@ -87,10 +89,11 @@ class UsuarioViewModel (private val repository: UsuarioRepository): ViewModel(){
         // Devuelve 'true' si NO hay errores
         return !hayErrores
     }
+
     fun guardarUsuario() {
-        val estadoActual = _estado.value
-        if (validarFormulario()) {
-            viewModelScope.launch {
+        viewModelScope.launch {
+            if (validarFormulario()) {
+                val estadoActual = _estado.value
                 val nuevoUsuario = Usuario(
                     nombre = estadoActual.nombre,
                     apellido = estadoActual.apellido,
@@ -102,5 +105,30 @@ class UsuarioViewModel (private val repository: UsuarioRepository): ViewModel(){
                 repository.insertar(nuevoUsuario)
             }
         }
+    }
+    fun cargarUsuarioActivo(correo: String) {
+        viewModelScope.launch {
+            val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correo }
+            _usuarioActivo.value = usuarioEncontrado
+        }
+    }
+
+    fun cerrarSesion() {
+        _usuarioActivo.value = null
+        _estado.value = UsuarioUIState() // Limpia el estado del formulario
+    }
+
+    fun actualizarFotoPerfil(uri: Uri?) {
+        val usuario = _usuarioActivo.value ?: return
+        val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else null
+
+        viewModelScope.launch {
+            repository.actualizarFotoPerfil(usuario.id, uriPersistente?.toString())
+            cargarUsuarioActivo(usuario.correo) // Recarga el usuario para refrescar la UI
+        }
+    }
+
+    private fun guardarCopiaLocal(uri: Uri): Uri {
+        return uri
     }
 }

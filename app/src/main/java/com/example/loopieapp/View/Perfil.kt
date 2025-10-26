@@ -1,6 +1,7 @@
 package com.example.loopieapp.View
 
 import android.Manifest
+import android.content.ClipData.newUri
 import android.content.Context
 import android.content.pm.PackageManager
 import android.icu.text.SimpleDateFormat
@@ -36,8 +37,12 @@ import androidx.navigation.NavController
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
 import com.example.loopieapp.Components.ImagenInteligente
-import com.example.loopieapp.ViewModel.PerfilViewModel
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.example.loopieapp.Components.Destinos
+import com.example.loopieapp.Model.AppDatabase
+import com.example.loopieapp.Repository.UsuarioRepository
+import com.example.loopieapp.ViewModel.UsuarioViewModel
+import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 import java.io.File
 import java.util.Date
 import java.util.Locale
@@ -46,11 +51,19 @@ import java.util.Locale
 @Composable
 fun Perfil(
     navController: NavController,
-    viewModel: PerfilViewModel = viewModel()
+    correoUsuario: String,
+    viewModel: UsuarioViewModel
 ) {
-    // Selección de imagen
+    val usuario by viewModel.usuarioActivo.collectAsState()
+
+    // Carga los datos del usuario cuando la pantalla se muestra por primera vez
+    LaunchedEffect(key1 = correoUsuario) {
+        if (correoUsuario.isNotBlank()) {
+            viewModel.cargarUsuarioActivo(correoUsuario)
+        }
+    }
+
     val context = LocalContext.current
-    val imagenUri by viewModel.imagenUri.collectAsState()
     var cameraUri by remember { mutableStateOf<Uri?>(null) }
 
     fun createImageUri(context: Context): Uri {
@@ -60,25 +73,27 @@ fun Perfil(
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 
-    val pickImageLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent(),
-        onResult = { uri -> viewModel.setImage(uri) }
-    )
-
-    val takePictureLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-        onResult = { success -> if (success) viewModel.setImage(cameraUri) }
-    )
-
-    val requestCameraPermission = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
-            val uri = createImageUri(context)
-            cameraUri = uri
-            takePictureLauncher.launch(uri)
+    val pickImageLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) {
+            viewModel.actualizarFotoPerfil(uri)
         }
     }
+
+    val takePictureLauncher = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) {
+            cameraUri?.let { viewModel.actualizarFotoPerfil(it) }
+        }
+    }
+
+    val requestCameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            // Fix: Pass the context to the function call
+            val newUri = createImageUri(context)
+            cameraUri = newUri
+            takePictureLauncher.launch(newUri)
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBarComponent(
@@ -100,10 +115,9 @@ fun Perfil(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Box(
-                        modifier = Modifier.clickable {
-
-                        }
+                        modifier = Modifier.clickable { }
                     ) {
+                        val imagenUri = usuario?.fotoPerfilUri?.let { Uri.parse(it) }
                         ImagenInteligente(
                             imagenUri = imagenUri,
                             modifier = Modifier
@@ -116,13 +130,11 @@ fun Perfil(
 
                     Column {
                         Text(
-                            text = "Nombre",
-                            style = MaterialTheme.typography.headlineSmall,
+                            text = usuario?.let { "${it.nombre} ${it.apellido}" } ?: "Cargando...",                            style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "usuario@loopie.com",
-                            style = MaterialTheme.typography.bodyMedium,
+                            text = usuario?.correo ?: "cargando...",                            style = MaterialTheme.typography.bodyMedium,
                             color = Color.Gray
                         )
 
@@ -180,7 +192,12 @@ fun Perfil(
                     icono = Icons.TwoTone.Storefront,
                     titulo = "Panel de Vendedor",
                     descripcion = "Gestiona tus productos y ventas",
-                    onClick = { navController.navigate("PanelVendedor") }
+                    onClick = {
+                        val userEmail = usuario?.correo
+                        if (userEmail != null) {
+                            navController.navigate(Destinos.PANEL_VENDEDOR.route)
+                        }
+                    }
                 )
             }
             item {
@@ -264,9 +281,9 @@ fun OpcionPerfil(
                 tint = Color(0xff847996),
                 modifier = Modifier.size(24.dp)
             )
-            
+
             Spacer(modifier = Modifier.width(16.dp))
-            
+
             Column(
                 modifier = Modifier.weight(1f)
             ) {

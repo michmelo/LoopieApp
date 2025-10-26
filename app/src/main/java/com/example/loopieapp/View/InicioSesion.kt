@@ -45,17 +45,8 @@ import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 @Composable
 fun InicioSesion(
     navController : NavController,
-    //viewModel : UsuarioViewModel = viewModel()
+    viewModel : UsuarioViewModel
 ) {
-    val context = LocalContext.current.applicationContext
-    val factory = remember {
-        UsuarioViewModelFactory(
-            UsuarioRepository(
-                AppDatabase.getDatabase(context).usuarioDao()
-            )
-        )
-    }
-    val viewModel: UsuarioViewModel = viewModel(factory = factory)
     val estado by viewModel.estado.collectAsState()
 
     Scaffold (
@@ -120,13 +111,12 @@ fun InicioSesion(
             Button(
                 onClick = {
                     if (viewModel.validarInicioSesion()) {
-                        // ✅ NAVEGACIÓN CORREGIDA DESPUÉS DEL LOGIN
+                        val correo = estado.correo
+                        viewModel.cargarUsuarioActivo(correo)
                         navController.navigate(Destinos.PANTALLAPRINCIPAL.route) {
-                            // Limpia toda la pila de navegación hasta la pantalla de inicio del grafo
                             popUpTo(navController.graph.findStartDestination().id) {
-                                inclusive = true // También elimina la pantalla de inicio (HomeScreen)
+                                inclusive = true
                             }
-                            // Asegúrate de que solo haya una instancia de la pantalla principal
                             launchSingleTop = true
                         }
                     }

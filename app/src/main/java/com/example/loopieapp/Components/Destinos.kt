@@ -18,14 +18,14 @@ enum class Destinos(
         label = "Inicio"
     ),
     PERFIL(
-        route = "Perfil",
+        route = "Perfil/{correo}",
         icon = Icons.Default.Person,
         label = "Perfil"
     ),
     PANEL_VENDEDOR(
-        route = "PanelVendedor",
+        route = "PanelVendedor/{correo}",
         icon = Icons.Default.Storefront,
-        label = "Vender"
+        label = "Mi Tienda"
     )
     // Puedes agregar más destinos aquí, como "Carrito", "Favoritos", etc.
 }

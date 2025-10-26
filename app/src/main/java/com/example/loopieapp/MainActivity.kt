@@ -26,7 +26,6 @@ import com.example.loopieapp.View.InicioSesion
 import com.example.loopieapp.View.PanelVendedor
 import com.example.loopieapp.View.PantallaPrincipal
 import com.example.loopieapp.View.Perfil
-import com.example.loopieapp.ViewModel.PerfilViewModel
 import com.example.loopieapp.ViewModel.UsuarioViewModel
 import com.example.loopieapp.ui.theme.LoopieAppTheme
 

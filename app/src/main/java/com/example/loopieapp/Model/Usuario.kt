@@ -13,4 +13,5 @@ data class Usuario (
     val clave : String,
     val direccion : String,
     //val aceptaTerminos: Boolean
+    val fotoPerfilUri: String? = null
 )
