@@ -42,10 +42,13 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
 
         viewModelScope.launch {
             val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
-            if (!correoGuardado.isNullOrBlank()) {
-                cargarUsuarioActivo(correoGuardado, restaurandoSesion = true)
+            if (correoGuardado.isNullOrBlank()) {
+                _isLoading.value = false
+            } else{
+                val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correoGuardado }
+                _usuarioActivo.value = usuarioEncontrado
+                _isLoading.value = false
             }
-            _isLoading.value = false
         }
     }
 
@@ -154,11 +157,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun cargarUsuarioActivo(correo: String, restaurandoSesion: Boolean = false) {
+    fun cargarUsuarioActivo(correo: String) {
         viewModelScope.launch {
             val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correo }
             _usuarioActivo.value = usuarioEncontrado
-            if (usuarioEncontrado != null && !restaurandoSesion) {
+            if (usuarioEncontrado != null) {
                 preferencias.guardarCorreoUsuarioActivo(correo)
             }
         }
@@ -174,7 +177,7 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else null
         viewModelScope.launch {
             repository.actualizarFotoPerfil(usuario.id, uriPersistente?.toString())
-            cargarUsuarioActivo(usuario.correo, restaurandoSesion = true)
+            cargarUsuarioActivo(usuario.correo)
         }
     }
 
