@@ -23,9 +23,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.example.loopieapp.LoopieApp
-import com.example.loopieapp.Model.AppDatabase
-import com.example.loopieapp.Repository.UsuarioRepository
 import com.example.loopieapp.View.HomeScreen
 import com.example.loopieapp.View.InicioSesion
 import com.example.loopieapp.View.PanelVendedor
@@ -36,6 +33,8 @@ import com.example.loopieapp.ViewModel.UsuarioViewModel
 import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import com.example.loopieapp.ViewModel.factory.ProductoViewModelFactory
+import com.example.loopieapp.ViewModel.ProductoViewModel
 
 @Composable
 fun MainScreen () {
@@ -50,6 +49,13 @@ fun MainScreen () {
     val usuarioActivo by viewModel.usuarioActivo.collectAsState()
 
     val isLoading by viewModel.isLoading.collectAsState()
+
+    val productoFactory = remember(application) {
+        ProductoViewModelFactory(application)
+    }
+
+    val productoViewModel: ProductoViewModel = viewModel(key = "productoVM", factory = productoFactory)
+
     if (isLoading) {
         // Mientras el ViewModel está comprobando la sesión, muestra la pantalla de carga.
         SplashScreen()
@@ -159,7 +165,7 @@ fun MainScreen () {
                     arguments = listOf(navArgument("correo") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val correo = backStackEntry.arguments?.getString("correo") ?: ""
-                    PanelVendedor(navController, correo)
+                    PanelVendedor(navController, correo, productoViewModel)
                 }
 
                 // Desde aquí otras rutas necesarias a futuro, ej"Detalle de Producto", etc.

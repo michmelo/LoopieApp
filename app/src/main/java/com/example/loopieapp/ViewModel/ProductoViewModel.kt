@@ -1,53 +1,76 @@
 package com.example.loopieapp.ViewModel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import android.content.ContentResolver
+import android.net.Uri
+import androidx.core.net.toUri
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.loopieapp.Model.Producto
+import com.example.loopieapp.Repository.ProductoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.UUID
+import java.io.File
+import java.io.FileOutputStream
 
-class ProductoViewModel : ViewModel() {
+class ProductoViewModel (private val repository: ProductoRepository, application: Application) : AndroidViewModel(application) {
     
-    // Estado privado
+    //Estado privado
     private val _productos = MutableStateFlow<List<Producto>>(emptyList())
     val productos: StateFlow<List<Producto>> = _productos.asStateFlow()
-    
+
+    //Estado del formulario y de la UI
     private val _uiState = MutableStateFlow(ProductoUIState())
     val uiState: StateFlow<ProductoUIState> = _uiState.asStateFlow()
-    
+
+    //Estado para el producto seleccionado
     private val _productoSeleccionado = MutableStateFlow<Producto?>(null)
     val productoSeleccionado: StateFlow<Producto?> = _productoSeleccionado.asStateFlow()
-    
+
+    init {
+        //Cargar los productos desde la base de datos al iniciar el ViewModel
+        obtenerProductos()
+    }
+
     // CREATE - Crear nuevo producto
-    fun agregarProducto() {
+    fun agregarProducto() : Boolean {
         val currentState = _uiState.value
         
         // Validaciones
         val errores = validarProducto(currentState)
-        if (errores != ProductoErrores()) {
-            _uiState.value = currentState.copy(errores = errores)
-            return
+        if (errores.nombre != null || errores.descripcion != null || errores.precio != null || errores.categoria != null || errores.stock != null || errores.rating != null || errores.imagen != null) {
+            _uiState.update { it.copy(errores = errores) }
+            return false // Falla la validación, detenemos
         }
-        
-        _uiState.value = currentState.copy(isLoading = true)
         
         viewModelScope.launch {
             try {
+                val imagenUriSegura = if(currentState.imagen.isNotBlank()){
+                    guardarCopiaLocal(currentState.imagen.toUri())
+                } else {
+                    Uri.EMPTY
+                }
+
                 val nuevoProducto = Producto(
-                    idProducto = UUID.randomUUID().toString(), //genera id automaticamente
                     nombre = currentState.nombre,
                     descripcion = currentState.descripcion,
                     precio = currentState.precio.toDoubleOrNull() ?: 0.0,
                     categoria = currentState.categoria,
                     stock = currentState.stock.toIntOrNull() ?: 0,
-                    imagen = currentState.imagen
+                    rating = currentState.rating.toFloatOrNull() ?: 0.0f,
+                    imagen = imagenUriSegura.toString()
                 )
-                
-                _productos.value = _productos.value + nuevoProducto
+
+                //Guardar en la base de datos
+                repository.insertar(nuevoProducto)
+
+                //Refrescar la lista desde la base de datos
+                obtenerProductos()
                 limpiarFormulario()
+
             } catch (e: Exception) {
                 // Manejar error
                 _uiState.value = currentState.copy(
@@ -58,16 +81,16 @@ class ProductoViewModel : ViewModel() {
                 )
             }
         }
+        return true // Se ha creado el producto
     }
-    
+
     // READ - Buscar productos
     fun obtenerProductos() { //Lista de todos los productos
-        _uiState.value = _uiState.value.copy(isLoading = true)
-        
         viewModelScope.launch {
+        _uiState.update { it.copy(isLoading = true) }
             try {
-                //Lista en memoria
-                _uiState.value = _uiState.value.copy(isLoading = false)
+                //Lectura desde el repositorio
+                _productos.value = repository.obtenerProductos()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isLoading = false,
@@ -75,6 +98,8 @@ class ProductoViewModel : ViewModel() {
                         nombre = "Error al obtener productos: ${e.message}"
                     )
                 )
+            } finally {
+                _uiState.update { it.copy(isLoading = false) }
             }
         }
     }
@@ -82,7 +107,8 @@ class ProductoViewModel : ViewModel() {
     fun buscarProductos(termino: String) { //Buscar productos por nombre, descripcion o categoria
         viewModelScope.launch {
             try {
-                val productosFiltrados = _productos.value.filter { producto ->
+                val productosFiltrados = repository.obtenerProductos()
+                _productos.value = productosFiltrados.filter { producto ->
                     producto.nombre.contains(termino, ignoreCase = true) ||
                     producto.descripcion.contains(termino, ignoreCase = true) ||
                     producto.categoria.contains(termino, ignoreCase = true)
@@ -96,42 +122,44 @@ class ProductoViewModel : ViewModel() {
     }
     
     // UPDATE - Actualizar producto
-    fun editarProducto(idProducto: String) {
+    fun editarProducto() : Boolean {
         val currentState = _uiState.value
-        val productoActual = _productoSeleccionado.value
-        
-        if (productoActual == null) {
-            _uiState.value = currentState.copy(
-                errores = ProductoErrores(nombre = "No hay producto seleccionado para actualizar")
-            )
-            return
-        }
+        val productoActual = _productoSeleccionado.value ?: return false //Obtiene el producto de su propio estado
         
         // Validaciones
         val errores = validarProducto(currentState)
-        if (errores != ProductoErrores()) {
-            _uiState.value = currentState.copy(errores = errores)
-            return
+        if (errores.nombre != null || errores.descripcion != null || errores.precio != null || errores.categoria != null || errores.stock != null || errores.rating != null || errores.imagen != null) {
+            _uiState.update { it.copy(errores = errores) }
+            return false
         }
-        
-        _uiState.value = currentState.copy(isLoading = true)
-        
+
         viewModelScope.launch {
             try {
+                val imagenUriSegura = if (currentState.imagen.isNotBlank()){
+                    if (currentState.imagen != productoActual.imagen) {
+                        guardarCopiaLocal(currentState.imagen.toUri())
+                    } else {
+                        // Si no cambió, usamos la URI que ya teníamos
+                        productoActual.imagen.toUri()
+                    }
+                } else {
+                    Uri.EMPTY
+                }
                 val productoActualizado = productoActual.copy(
                     nombre = currentState.nombre,
                     descripcion = currentState.descripcion,
                     precio = currentState.precio.toDoubleOrNull() ?: 0.0,
                     categoria = currentState.categoria,
                     stock = currentState.stock.toIntOrNull() ?: 0,
-                    imagen = currentState.imagen
+                    rating = currentState.rating.toFloatOrNull() ?: 0.0f,
+                    imagen = imagenUriSegura.toString()
                 )
-                
-                _productos.value = _productos.value.map { 
-                    if (it.idProducto == productoActualizado.idProducto) productoActualizado else it
-                }
-                
-                _productoSeleccionado.value = productoActualizado
+
+                //Actualizar la base de datos llamando al repository
+                repository.actualizar(productoActualizado)
+
+                //Actualizar la lista en la base de datos
+                obtenerProductos()
                 limpiarFormulario()
             } catch (e: Exception) {
                 _uiState.value = currentState.copy(
@@ -142,33 +170,35 @@ class ProductoViewModel : ViewModel() {
                 )
             }
         }
+        return true // Se ha actualizado el producto
     }
     
     // DELETE - Eliminar producto
-    fun eliminarProducto(id: String) {
-        _uiState.value = _uiState.value.copy(isLoading = true)
-        
+    fun eliminarProducto(producto: Producto) {
         viewModelScope.launch {
-            try {
-                _productos.value = _productos.value.filter { it.idProducto != id }
-                
-                // Si el producto eliminado era el seleccionado, limpiar selección
-                if (_productoSeleccionado.value?.idProducto == id) {
-                    _productoSeleccionado.value = null
-                }
-                
-                _uiState.value = _uiState.value.copy(isLoading = false)
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    errores = ProductoErrores(
-                        nombre = "Error al eliminar el producto: ${e.message}"
-                    )
-                )
-            }
+            repository.eliminar(producto)
+            obtenerProductos()
         }
     }
-    
+
+    fun seleccionarProducto(producto: Producto) {
+        _productoSeleccionado.value = producto
+        _uiState.value = ProductoUIState(
+            nombre = producto.nombre,
+            descripcion = producto.descripcion,
+            precio = producto.precio.toString(),
+            categoria = producto.categoria,
+            stock = producto.stock.toString(),
+            rating = producto.rating.toString(),
+            imagen = producto.imagen
+        )
+    }
+
+    fun limpiarFormulario() {
+        _uiState.value = ProductoUIState()
+        _productoSeleccionado.value = null
+    }
+
     // Métodos auxiliares para manejar el formulario
     fun actualizarNombre(nombre: String) {
         _uiState.value = _uiState.value.copy(
@@ -211,11 +241,8 @@ class ProductoViewModel : ViewModel() {
             errores = _uiState.value.errores.copy(imagen = null)
         )
     }
-    
-    fun limpiarFormulario() {
-        _uiState.value = ProductoUIState()
-        _productoSeleccionado.value = null
-    }
+
+    fun actualizarRating(rating: String) { _uiState.value = _uiState.value.copy(rating = rating, errores = _uiState.value.errores.copy(rating = null)) }
     
     fun cancelarEdicion() {
         limpiarFormulario()
@@ -228,23 +255,45 @@ class ProductoViewModel : ViewModel() {
         if (estado.nombre.isBlank()) {
             errores = errores.copy(nombre = "El nombre es obligatorio")
         }
-        
         if (estado.descripcion.isBlank()) {
             errores = errores.copy(descripcion = "La descripción es obligatoria")
         }
-        
         if (estado.precio.isBlank() || estado.precio.toDoubleOrNull() == null || estado.precio.toDouble() <= 0) {
             errores = errores.copy(precio = "El precio debe ser un número válido mayor a 0")
         }
-        
         if (estado.categoria.isBlank()) {
             errores = errores.copy(categoria = "La categoría es obligatoria")
         }
-        
         if (estado.stock.isBlank() || estado.stock.toIntOrNull() == null || estado.stock.toInt() < 0) {
             errores = errores.copy(stock = "El stock debe ser un número válido mayor o igual a 0")
         }
-        
+        if (estado.rating.isBlank() || estado.rating.toFloatOrNull() == null || estado.rating.toFloat() < 0 || estado.rating.toFloat() > 5) {
+            errores = errores.copy(rating = "El rating debe ser un número válido entre 0 y 5")
+        }
+        if (estado.imagen.isBlank()) {
+            errores = errores.copy(imagen = "La imagen es obligatoria")
+        }
         return errores
+    }
+
+    private fun guardarCopiaLocal(uri: Uri): Uri {
+        val application = getApplication<Application>()
+        val contentResolver: ContentResolver = application.contentResolver
+        val nombreArchivo = "prod_img_${System.currentTimeMillis()}.jpg"
+        val archivoDestino = File(application.filesDir, nombreArchivo)
+
+        return try {
+            contentResolver.openInputStream(uri)?.use { inputStream ->
+                FileOutputStream(archivoDestino).use { outputStream ->
+                    inputStream.copyTo(outputStream)
+                }
+            }
+            // Si todo va bien, devuelve la URI del nuevo archivo seguro
+            Uri.fromFile(archivoDestino)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Si falla, devuelve la URI original como último recurso
+            uri
+        }
     }
 }

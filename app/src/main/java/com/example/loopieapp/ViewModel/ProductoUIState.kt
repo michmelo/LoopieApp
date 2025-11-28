@@ -6,6 +6,7 @@ data class ProductoUIState(
     val precio: String = "",
     val categoria: String = "",
     val stock: String = "",
+    val rating: String = "",
     val imagen: String = "",
     val errores: ProductoErrores = ProductoErrores(),
     val isLoading: Boolean = false,

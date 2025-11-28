@@ -6,5 +6,6 @@ data class ProductoErrores(
     val precio: String? = null,
     val categoria: String? = null,
     val stock: String? = null,
+    val rating: String? = null,
     val imagen: String? = null
 )
