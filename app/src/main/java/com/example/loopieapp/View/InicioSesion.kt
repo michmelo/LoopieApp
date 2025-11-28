@@ -29,6 +29,7 @@ import androidx.navigation.NavController
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Scaffold
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.style.TextAlign
@@ -48,7 +49,21 @@ fun InicioSesion(
     viewModel : UsuarioViewModel
 ) {
     val estado by viewModel.estado.collectAsState()
+    val usuarioActivo by viewModel.usuarioActivo.collectAsState()
 
+    //Se ejecuta cuando 'usuarioActivo' cambia
+    LaunchedEffect(usuarioActivo) {
+        if (usuarioActivo != null) {
+            //El usuario activo ya no es nulo, el login fue exitoso.
+            //Navega a la pantalla principal
+            navController.navigate(Destinos.PANTALLAPRINCIPAL.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
+        }
+    }
     Scaffold (
         topBar = {
             CenterAlignedTopAppBarComponent(
@@ -112,7 +127,7 @@ fun InicioSesion(
                 onClick = {
                     if (viewModel.validarInicioSesion()) {
                         val correo = estado.correo
-                        viewModel.cargarUsuarioActivo(correo)
+                        viewModel.iniciarSesion(correo)
                         navController.navigate(Destinos.PANTALLAPRINCIPAL.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
                                 inclusive = true

@@ -16,7 +16,9 @@ import kotlinx.coroutines.launch
 import java.io.File
 import java.io.FileOutputStream
 
-class ProductoViewModel (private val repository: ProductoRepository, application: Application) : AndroidViewModel(application) {
+class ProductoViewModel (application: Application) : AndroidViewModel(application) {
+
+    private val repository: ProductoRepository = ProductoRepository()
     
     //Estado privado
     private val _productos = MutableStateFlow<List<Producto>>(emptyList())
@@ -63,14 +65,11 @@ class ProductoViewModel (private val repository: ProductoRepository, application
                     rating = currentState.rating.toFloatOrNull() ?: 0.0f,
                     imagen = imagenUriSegura.toString()
                 )
-
-                //Guardar en la base de datos
-                repository.insertar(nuevoProducto)
-
-                //Refrescar la lista desde la base de datos
-                obtenerProductos()
-                limpiarFormulario()
-
+                val productoCreado = repository.insertar(nuevoProducto)
+                if (productoCreado == null) {
+                    obtenerProductos()
+                    limpiarFormulario()
+                }
             } catch (e: Exception) {
                 // Manejar error
                 _uiState.value = currentState.copy(
@@ -156,7 +155,7 @@ class ProductoViewModel (private val repository: ProductoRepository, application
                 )
 
                 //Actualizar la base de datos llamando al repository
-                repository.actualizar(productoActualizado)
+                repository.actualizar(productoActualizado.idProducto, productoActualizado)
 
                 //Actualizar la lista en la base de datos
                 obtenerProductos()
@@ -176,8 +175,16 @@ class ProductoViewModel (private val repository: ProductoRepository, application
     // DELETE - Eliminar producto
     fun eliminarProducto(producto: Producto) {
         viewModelScope.launch {
-            repository.eliminar(producto)
-            obtenerProductos()
+            val exito = repository.eliminar(producto.idProducto)
+            if (exito){
+                obtenerProductos()
+            } else {
+                _uiState.value = _uiState.value.copy(
+                    errores = ProductoErrores(
+                        nombre = "Error al eliminar el producto: ${producto.nombre}"
+                    )
+                )
+            }
         }
     }
 
@@ -288,11 +295,11 @@ class ProductoViewModel (private val repository: ProductoRepository, application
                     inputStream.copyTo(outputStream)
                 }
             }
-            // Si todo va bien, devuelve la URI del nuevo archivo seguro
+            //Exito: Devuelve la URI del nuevo archivo
             Uri.fromFile(archivoDestino)
         } catch (e: Exception) {
             e.printStackTrace()
-            // Si falla, devuelve la URI original como último recurso
+            //Fallo: Devuelve la URI original como último recurso
             uri
         }
     }

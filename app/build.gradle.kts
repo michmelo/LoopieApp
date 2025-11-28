@@ -40,8 +40,17 @@ android {
     buildFeatures {
         compose = true
     }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/INDEX.LIST"
+            excludes += "META-INF/DEPENDENCIES"
+            excludes += "META-INF/io.netty.versions.properties"
+        }
+    }
 }
 val nav_version = "2.7.7"
+
 dependencies {
     implementation("androidx.navigation:navigation-compose:${nav_version}")
     implementation("io.coil-kt:coil-compose:2.6.0")
@@ -63,6 +72,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.core.splashscreen)
+    implementation(libs.firebase.appdistribution.gradle)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -75,5 +85,12 @@ dependencies {
     kapt ("androidx.room:room-compiler:2.6.1")
     implementation ("androidx.room:room-ktx:2.6.1")
 
+    // --- DEPENDENCIAS PARA CONEXIÓN A LA API ---
+    // Retrofit (el cliente HTTP)
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    // Gson Converter (para convertir JSON a objetos Kotlin y viceversa)
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    // OkHttp Logging Interceptor (muy útil para depurar, te permite ver las peticiones en el Logcat)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
 
 }

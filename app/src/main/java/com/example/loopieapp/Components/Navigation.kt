@@ -33,143 +33,159 @@ import com.example.loopieapp.ViewModel.UsuarioViewModel
 import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
-import com.example.loopieapp.ViewModel.factory.ProductoViewModelFactory
+import androidx.compose.runtime.LaunchedEffect
 import com.example.loopieapp.ViewModel.ProductoViewModel
 
 @Composable
 fun MainScreen () {
     val navController = rememberNavController()
-    val context = LocalContext.current
-    val application = LocalContext.current.applicationContext as Application
-    val factory = remember (application) {
-        UsuarioViewModelFactory(application)
-    }
+    //val context = LocalContext.current
+    //val application = LocalContext.current.applicationContext as Application
+    //val factory = remember (application) {
+    //    UsuarioViewModelFactory(application)
+    //}
 
-    val viewModel : UsuarioViewModel = viewModel (factory = factory)
-    val usuarioActivo by viewModel.usuarioActivo.collectAsState()
+    val usuarioViewModel: UsuarioViewModel = viewModel()
+    val productoViewModel: ProductoViewModel = viewModel()
 
-    val isLoading by viewModel.isLoading.collectAsState()
+    val usuarioActivo by usuarioViewModel.usuarioActivo.collectAsState()
+    val isLoading by usuarioViewModel.isLoading.collectAsState()
 
-    val productoFactory = remember(application) {
+    /*val productoFactory = remember(application) {
         ProductoViewModelFactory(application)
-    }
+    }*/
 
-    val productoViewModel: ProductoViewModel = viewModel(key = "productoVM", factory = productoFactory)
-
-    if (isLoading) {
-        // Mientras el ViewModel está comprobando la sesión, muestra la pantalla de carga.
-        SplashScreen()
-    } else {
-        // Una vez que la comprobación ha terminado, decide la pantalla inicial.
-        val pantallaInicial =
-            if (usuarioActivo != null) Destinos.PANTALLAPRINCIPAL.route else "HomeScreen"
-
-        Scaffold(
-            bottomBar = {
-                val navBackStackEntry by navController.currentBackStackEntryAsState()
-                val currentDestination = navBackStackEntry?.destination
-
-                val showBottomBar = Destinos.entries.any { destino ->
-                    currentDestination?.route?.startsWith(destino.route.substringBefore('/')) == true
+    LaunchedEffect(key1 =usuarioActivo, key2 = isLoading) {
+        if (isLoading) {
+            return@LaunchedEffect
+        }
+        if (usuarioActivo != null) {
+            navController.navigate(Destinos.PANTALLAPRINCIPAL.route) {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    inclusive = true
                 }
+                launchSingleTop = true
+            }
+        }
+        else {
+            navController.navigate("HomeScreen") {
+                popUpTo(navController.graph.findStartDestination().id) {
+                    inclusive = true
+                }
+                launchSingleTop = true
+            }
+        }
+    }
+    Scaffold(
+        bottomBar = {
+            val navBackStackEntry by navController.currentBackStackEntryAsState()
+            val currentDestination = navBackStackEntry?.destination
+            val showBottomBar = Destinos.entries.any { destino ->
+                currentDestination?.route?.startsWith(destino.route.substringBefore('/')) == true
+            }
 
-                if (showBottomBar) {
-                    NavigationBar {
-                        Destinos.entries.forEach { destino ->
-                            val isSelected = currentDestination?.hierarchy?.any {
-                                it.route?.startsWith(destino.route.substringBefore('/')) == true
-                            } == true
+            if (showBottomBar) {
+                NavigationBar {
+                    Destinos.entries.forEach { destino ->
+                        val isSelected = currentDestination?.hierarchy?.any {
+                            it.route?.startsWith(destino.route.substringBefore('/')) == true
+                        } == true
 
-                            NavigationBarItem(
-                                selected = isSelected,
-                                onClick = {
-                                    val userEmail = usuarioActivo?.correo ?: "error@loopie.cl"
-                                    val route = destino.route.replace("{correo}", userEmail)
+                        NavigationBarItem(
+                            selected = isSelected,
+                            onClick = {
+                                val userEmail = usuarioActivo?.correo ?: "error@loopie.cl"
+                                val route = destino.route.replace("{correo}", userEmail)
 
-                                    navController.navigate(route) {
-                                        popUpTo(navController.graph.findStartDestination().id) {
-                                            saveState = true
-                                        }
-                                        launchSingleTop = true
-                                        restoreState = true
+                                navController.navigate(route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
                                     }
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = destino.icon,
-                                        contentDescription = destino.label
-                                    )
-                                },
-                                label = { Text(destino.label) }
-                            )
-                        }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                            icon = {
+                                Icon(
+                                    imageVector = destino.icon,
+                                    contentDescription = destino.label
+                                )
+                            },
+                            label = { Text(destino.label) }
+                        )
                     }
                 }
             }
-        ) { innerPadding ->
-            NavHost(
-                navController = navController,
-                startDestination = pantallaInicial , // La app empieza en HomeScreen
-                modifier = Modifier.padding(innerPadding),
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = navController,
+            startDestination = "SplashScreen", // La app empieza en HomeScreen
+            modifier = Modifier.padding(innerPadding),
 
-                // --- Parámetros de Animación ---
-                enterTransition = {
-                    slideIntoContainer(
-                        towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                        animationSpec = tween(400)
-                    )
-                },
-                exitTransition = {
-                    slideOutOfContainer(
-                        towards = AnimatedContentTransitionScope.SlideDirection.Left,
-                        animationSpec = tween(400)
-                    )
-                },
-                popEnterTransition = {
-                    slideIntoContainer(
-                        towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                        animationSpec = tween(400)
-                    )
-                },
-                popExitTransition = {
-                    slideOutOfContainer(
-                        towards = AnimatedContentTransitionScope.SlideDirection.Right,
-                        animationSpec = tween(400)
-                    )
-                }
-            ) {
-                // Pantallas SIN barra de navegación
-                composable("HomeScreen") {
-                    HomeScreen(navController = navController)
-                }
-                composable("InicioSesion") {
-                    InicioSesion(navController = navController, viewModel = viewModel)
-                }
-                composable("FormularioRegistro") {
-                    FormularioRegistro(navController = navController, viewModel = viewModel)
-                }
-                // Pantallas CON barra de navegación
-                // Rutas principales
-                composable(Destinos.PANTALLAPRINCIPAL.route) {
-                    PantallaPrincipal(navController = navController)
-                }
-                composable(
-                    route = Destinos.PERFIL.route, // Define la ruta con un placeholder
-                    arguments = listOf(navArgument("correo") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val correo = backStackEntry.arguments?.getString("correo") ?: ""
-                    Perfil(navController, correo, viewModel)
-                }
-                composable(
-                    route = Destinos.PANEL_VENDEDOR.route,
-                    arguments = listOf(navArgument("correo") { type = NavType.StringType })
-                ) { backStackEntry ->
-                    val correo = backStackEntry.arguments?.getString("correo") ?: ""
-                    PanelVendedor(navController, correo, productoViewModel)
-                }
-
-                // Desde aquí otras rutas necesarias a futuro, ej"Detalle de Producto", etc.
+            // --- Parámetros de Animación ---
+            enterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Left,
+                    animationSpec = tween(400)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    towards = AnimatedContentTransitionScope.SlideDirection.Right,
+                    animationSpec = tween(400)
+                )
             }
+        ) {
+            composable("SplashScreen") {
+                SplashScreen()
+            }
+            // Pantallas SIN barra de navegación
+            composable("HomeScreen") {
+                HomeScreen(navController)
+            }
+            composable("InicioSesion") {
+                InicioSesion(navController = navController, viewModel = usuarioViewModel)
+            }
+            composable("FormularioRegistro") {
+                FormularioRegistro(navController = navController, viewModel = usuarioViewModel)
+            }
+            // Pantallas CON barra de navegación
+            // Rutas principales
+            composable(Destinos.PANTALLAPRINCIPAL.route) {
+                PantallaPrincipal(navController = navController)
+            }
+            composable(
+                route = Destinos.PERFIL.route, // Define la ruta con un placeholder
+                arguments = listOf(navArgument("correo") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val correo = backStackEntry.arguments?.getString("correo") ?: ""
+                Perfil(navController, correo, usuarioViewModel)
+            }
+            composable(
+                route = Destinos.PANEL_VENDEDOR.route,
+                arguments = listOf(navArgument("correo") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val correo = backStackEntry.arguments?.getString("correo") ?: ""
+                PanelVendedor(
+                    navController = navController,
+                    correoUsuario = correo,
+                    viewModel = productoViewModel)
+            }
+
+            // Desde aquí otras rutas necesarias a futuro, ej"Detalle de Producto", etc.
         }
     }
 }

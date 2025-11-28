@@ -57,11 +57,11 @@ fun Perfil(
     val usuario by viewModel.usuarioActivo.collectAsState()
 
     // Carga los datos del usuario cuando la pantalla se muestra por primera vez
-    LaunchedEffect(key1 = correoUsuario) {
+    /*LaunchedEffect(key1 = correoUsuario) {
         if (correoUsuario.isNotBlank()) {
             viewModel.cargarUsuarioActivo(correoUsuario)
         }
-    }
+    }*/
 
     val context = LocalContext.current
     var cameraUri by remember { mutableStateOf<Uri?>(null) }

@@ -6,6 +6,7 @@
         android:name="android.hardware.camera"
         android:required="false" />  <!--permite ejecutar en emuladores sin cámara física-->
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" /> <!--permiso para tomar fotos con la cámara.-->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" /> <!--lectura de imágenes sin scope storage tradicional-->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -20,7 +21,9 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LoopieApp">
+        android:theme="@style/Theme.LoopieApp"
+        tools:targetApi="31"
+        android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
             android:exported="true"

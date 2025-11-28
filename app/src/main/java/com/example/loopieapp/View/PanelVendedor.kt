@@ -43,8 +43,7 @@ import coil.compose.AsyncImage
 fun PanelVendedor(
     navController: NavController,
     correoUsuario: String,
-    viewModel: ProductoViewModel)
-{
+    viewModel: ProductoViewModel) {
 
     // val uiState by viewModel.uiState.collectAsState()
     val productos by viewModel.productos.collectAsState()
@@ -64,7 +63,7 @@ fun PanelVendedor(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBarComponent(
-                title ="Panel de Vendedor",
+                title = "Panel de Vendedor",
                 onBackClick = { navController.popBackStack() }
             )
         },
@@ -153,7 +152,7 @@ fun PanelVendedor(
                 LazyColumn(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(productos, key = { producto -> producto.idProducto}) { producto ->
+                    items(productos, key = { producto -> producto.idProducto }) { producto ->
                         ProductoCard(
                             producto = producto,
                             onEditar = {
@@ -181,8 +180,8 @@ fun PanelVendedor(
             }
         }
     }
-// Diálogo para agregar producto
-if (mostrarDialogoAgregar) {
+    // Diálogo para agregar producto
+    if (mostrarDialogoAgregar) {
         FormularioProductoDialog(
             titulo = "Agregar Producto",
             onConfirmar = {

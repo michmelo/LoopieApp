@@ -5,6 +5,7 @@ import UsuarioUIState
 import android.app.Application
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.loopieapp.Model.Usuario
@@ -17,14 +18,16 @@ import androidx.lifecycle.viewModelScope
 import java.io.File
 import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
+import com.example.loopieapp.Data.LoginRequest
 import com.example.loopieapp.Data.PreferenciasUsuario
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Services.NotificationService
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: UsuarioRepository
-    private val preferencias: PreferenciasUsuario
+    private val repository: UsuarioRepository = UsuarioRepository()
+    private val preferencias: PreferenciasUsuario = PreferenciasUsuario(application)
+    private val notificationService = NotificationService(application)
 
     private val _estado = MutableStateFlow(UsuarioUIState())
     val estado = _estado.asStateFlow()
@@ -35,96 +38,57 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val _isLoading = MutableStateFlow(true) // Empieza como 'true' porque estamos cargando
     val isLoading = _isLoading.asStateFlow()
 
-    private val notificationService = NotificationService(application)
-
     init {
         // Obtenemos el DAO y creamos el repositorio DENTRO del init.
-        val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
-        repository = UsuarioRepository(usuarioDao)
-        preferencias = PreferenciasUsuario(application)
+        //val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
+        //repository = UsuarioRepository(usuarioDao)
+        //preferencias = PreferenciasUsuario(application)
 
         viewModelScope.launch {
-            val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
-            if (correoGuardado.isNullOrBlank()) {
-                _isLoading.value = false
-            } else{
-                val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correoGuardado }
-                _usuarioActivo.value = usuarioEncontrado
-                _isLoading.value = false
+            try {
+                val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
+                if (correoGuardado.isNullOrBlank()) {
+                    _isLoading.value = false //No hay sesión
+                } else{
+                    val usuarioEncontrado = repository.obtenerUsuarioPorCorreo(correoGuardado)
+                    _usuarioActivo.value = usuarioEncontrado
+                    _isLoading.value = false //Termina la carga
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _isLoading.value = false //Termina la carga
+
             }
         }
     }
 
     //Funciones para el formualario
-    fun onNombreChange(valor: String) {
-        _estado.update { it.copy(nombre = valor, errores = it.errores.copy(nombre = null)) }
-    }
-
-    fun onApellidoChange(valor: String) {
-        _estado.update { it.copy(apellido = valor, errores = it.errores.copy(apellido = null)) }
-    }
-
-    fun onCorreoChange(valor: String) {
-        _estado.update { it.copy(correo = valor, errores = it.errores.copy(correo = null)) }
-    }
-
-    fun onClaveChange(valor: String) {
-        _estado.update { it.copy(clave = valor, errores = it.errores.copy(clave = null)) }
-    }
-
-    fun onConfirmarClaveChange(valor: String) {
-        _estado.update {
-            it.copy(
-                confirmarClave = valor,
-                errores = it.errores.copy(confirmarClave = null)
-            )
-        }
-    }
-
-    fun onDireccionChange(valor: String) {
-        _estado.update { it.copy(direccion = valor, errores = it.errores.copy(direccion = null)) }
-    }
-
-    fun onAceptaTerminosChange(valor: Boolean) {
-        _estado.update { it.copy(aceptaTerminos = valor) }
-    }
+    fun onNombreChange(valor: String) { _estado.update { it.copy(nombre = valor, errores = it.errores.copy(nombre = null)) } }
+    fun onApellidoChange(valor: String) { _estado.update { it.copy(apellido = valor, errores = it.errores.copy(apellido = null)) } }
+    fun onCorreoChange(valor: String) { _estado.update { it.copy(correo = valor, errores = it.errores.copy(correo = null)) } }
+    fun onClaveChange(valor: String) { _estado.update { it.copy(clave = valor, errores = it.errores.copy(clave = null)) } }
+    fun onConfirmarClaveChange(valor: String) { _estado.update { it.copy(confirmarClave = valor, errores = it.errores.copy(confirmarClave = null)) } }
+    fun onDireccionChange(valor: String) { _estado.update { it.copy(direccion = valor, errores = it.errores.copy(direccion = null)) } }
+    fun onAceptaTerminosChange(valor: Boolean) { _estado.update { it.copy(aceptaTerminos = valor) } }
 
     // Validaciones formulario
     fun validarFormulario(): Boolean {
         val estadoActual = _estado.value
-
         _estado.update { it.copy(errores = UsuarioErrores()) }
-
-        if (estadoActual.nombre.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(nombre = "Debe ingresar un nombre")) }
-            return false
-        }
-        if (estadoActual.apellido.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(apellido = "Debe ingresar un apellido")) }
-            return false
-        }
-        if (!estadoActual.correo.contains("@")) {
-            _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
-            return false
-        }
-        if (estadoActual.clave.length < 8) {
-            _estado.update { it.copy(errores = it.errores.copy(clave = "Contraseña debe tener al menos 8 carácteres")) }
-            return false
-        }
-        if (estadoActual.clave != estadoActual.confirmarClave) {
-            _estado.update {
-                it.copy(errores = it.errores.copy(confirmarClave = "Las contraseñas no coinciden"))
-            }
-            return false
-        }
-        if (estadoActual.direccion.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(direccion = "Debe ingresar una dirección")) }
-            return false
-        }
-        if (!estadoActual.aceptaTerminos) {
-            _estado.update { it.copy(errores = it.errores.copy(aceptaTerminos = "Debes aceptar los términos y condiciones")) }
-            return false
-        }
+        if (estadoActual.nombre.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(nombre = "Debe ingresar un nombre")) }
+            return false }
+        if (estadoActual.apellido.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(apellido = "Debe ingresar un apellido")) }
+            return false }
+        if (!estadoActual.correo.contains("@")) { _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
+            return false }
+        if (estadoActual.clave.length < 8) { _estado.update { it.copy(errores = it.errores.copy(clave = "Contraseña debe tener al menos 8 carácteres")) }
+            return false }
+        if (estadoActual.clave != estadoActual.confirmarClave) { _estado.update { it.copy(errores = it.errores.copy(confirmarClave = "Las contraseñas no coinciden")) }
+            return false }
+        if (estadoActual.direccion.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(direccion = "Debe ingresar una dirección")) }
+            return false }
+        if (!estadoActual.aceptaTerminos) { _estado.update { it.copy(errores = it.errores.copy(aceptaTerminos = "Debes aceptar los términos y condiciones")) }
+            return false }
         _estado.update { it.copy(errores = UsuarioErrores()) }
         return true
     }
@@ -133,45 +97,62 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     fun validarInicioSesion(): Boolean {
         val estadoActual = _estado.value
         _estado.update { it.copy(errores = UsuarioErrores()) }
-
-        if (!estadoActual.correo.contains("@") || !estadoActual.correo.contains(".")){
-            _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
-            return false
-        }
-        if (estadoActual.clave.isEmpty()) {
-            _estado.update { it.copy(errores = it.errores.copy(clave = "Debe ingresar una contraseña")) }
-            return false
-        }
+        if (!estadoActual.correo.contains("@") || !estadoActual.correo.contains(".")){ _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
+            return false }
+        if (estadoActual.clave.isEmpty()) { _estado.update { it.copy(errores = it.errores.copy(clave = "Debe ingresar una contraseña")) }
+            return false }
         return true
     }
+
     fun guardarUsuario() {
-            if (validarFormulario()) {
-                viewModelScope.launch {
-                    val estadoActual = _estado.value
-                    val nuevoUsuario = Usuario(
-                        nombre = estadoActual.nombre,
-                        apellido = estadoActual.apellido,
-                        correo = estadoActual.correo,
-                        clave = estadoActual.clave,
-                        direccion = estadoActual.direccion
+        if (validarFormulario()) {
+            viewModelScope.launch {
+                val estadoActual = _estado.value
+                val nuevoUsuario = Usuario(
+                    nombre = estadoActual.nombre,
+                    apellido = estadoActual.apellido,
+                    correo = estadoActual.correo,
+                    clave = estadoActual.clave,
+                    direccion = estadoActual.direccion
                 )
-                repository.insertar(nuevoUsuario)
+                //llama al metodo en el repositorio que usa la apo
+                val usuarioRegistrado = repository.registrarUsuario(nuevoUsuario)
 
-                notificationService.mostrarNotificacionRegistroExitoso()
-
+                if (usuarioRegistrado != null) {
+                    // Éxito: Muestra notificación y podrías hacer login automático
+                    notificationService.mostrarNotificacionRegistroExitoso()
+                    iniciarSesion(estadoActual.correo, estadoActual.clave)
+                } else {
+                    // Error: Muestra un mensaje al usuario
+                    _estado.update { it.copy(errores = it.errores.copy(nombre = "El registro falló. Inténtalo de nuevo.")) }
+                }
             }
         }
     }
 
-    fun cargarUsuarioActivo(correo: String) {
+    fun iniciarSesion(correo: String? = null, clave: String? = null) {
+        if (correo == null && !validarInicioSesion()) {
+            return
+        }
+
         viewModelScope.launch {
-            val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correo }
-            _usuarioActivo.value = usuarioEncontrado
-            if (usuarioEncontrado != null) {
-                preferencias.guardarCorreoUsuarioActivo(correo)
+            val currentState = _estado.value
+            val loginRequest = LoginRequest(correo = currentState.correo, clave = currentState.clave)
+            val usuario = repository.iniciarSesion(loginRequest)
+
+            if (usuario != null) {
+                _usuarioActivo.value = usuario
+                // Guarda la sesión en SharedPreferences
+                preferencias.guardarCorreoUsuarioActivo(usuario.correo)
+            } else {
+                // Error: Muestra un mensaje al usuario
+                if (correo == null) {
+                    _estado.update { it.copy(errores = it.errores.copy(clave = "Correo o contraseña incorrectos.")) }
+                }
             }
         }
     }
+
     fun cerrarSesion() {
         _usuarioActivo.value = null
         _estado.value = UsuarioUIState() // Limpia el estado del formulario
@@ -180,10 +161,14 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
 
     fun actualizarFotoPerfil(uri: Uri?) {
         val usuario = _usuarioActivo.value ?: return
-        val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else null
+        val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else "".toUri()
+
         viewModelScope.launch {
-            repository.actualizarFotoPerfil(usuario.id, uriPersistente?.toString())
-            cargarUsuarioActivo(usuario.correo)
+            val usuarioActualizado = usuario.copy(fotoPerfilUri = uriPersistente.toString())
+            val resultado = repository.actualizarUsuario(usuario.id,usuarioActualizado)
+            if (resultado != null) {
+                _usuarioActivo.value = resultado
+            }
         }
     }
 
