@@ -55,6 +55,8 @@ fun Perfil(
     viewModel: UsuarioViewModel
 ) {
     val usuario by viewModel.usuarioActivo.collectAsState()
+    var mostrarDialogo by remember { mutableStateOf(false) } // Estado para controlar el diálogo
+
 
     // Carga los datos del usuario cuando la pantalla se muestra por primera vez
     /*LaunchedEffect(key1 = correoUsuario) {
@@ -91,6 +93,23 @@ fun Perfil(
             cameraUri = newUri
             takePictureLauncher.launch(newUri)
         }
+    }
+
+    if (mostrarDialogo) {
+        // LaunchedEffect asegura que esto se llame solo una vez cuando el diálogo aparece
+        LaunchedEffect(Unit) {
+            viewModel.cargarDatosParaEdicion()
+        }
+        ModificarPerfilDialog(
+            viewModel = viewModel,
+            onConfirm = {
+                viewModel.actualizarPerfil()
+                mostrarDialogo = false // Cierra el diálogo
+            },
+            onDismiss = {
+                mostrarDialogo = false // Cierra el diálogo
+            }
+        )
     }
 
     Scaffold(
@@ -186,6 +205,16 @@ fun Perfil(
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+            item {
+                OpcionPerfil(
+                    icono = Icons.Default.Edit,
+                    titulo = "Editar perfil",
+                    descripcion = "Gestiona tus datos personales",
+                    onClick = {
+                        mostrarDialogo = true
+                    }
                 )
             }
             item {

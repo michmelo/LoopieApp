@@ -119,7 +119,6 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-
     //Funcion para cuando el usuario selecciona un pais del menu
     fun onCountrySelected(country: Country) {
         _selectedCountry.value = country
@@ -135,6 +134,10 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     fun onConfirmarClaveChange(valor: String) { _estado.update { it.copy(confirmarClave = valor, errores = it.errores.copy(confirmarClave = null)) } }
     fun onDireccionChange(valor: String) { _estado.update { it.copy(direccion = valor, errores = it.errores.copy(direccion = null)) } }
     fun onAceptaTerminosChange(valor: Boolean) { _estado.update { it.copy(aceptaTerminos = valor) } }
+    fun onClaveActualChange(valor: String) { _estado.update { it.copy(claveActual = valor, errores = it.errores.copy(claveActual = null)) } }
+    fun onNuevaClaveChange(valor: String) { _estado.update { it.copy(nuevaClave = valor, errores = it.errores.copy(nuevaClave = null)) } }
+    fun onConfirmarNuevaClaveChange(valor: String) { _estado.update { it.copy(confirmarNuevaClave = valor, errores = it.errores.copy(confirmarNuevaClave = null)) } }
+
 
     // Validaciones formulario
     fun validarFormulario(): Boolean {
@@ -229,6 +232,75 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         preferencias.guardarCorreoUsuarioActivo(null)
     }
 
+    //Función para pre-cargar el formulario con los datos actuales del usuario
+    fun cargarDatosParaEdicion() {
+        val usuario = _usuarioActivo.value ?: return
+        _estado.update {it.copy(
+            nombre = usuario.nombre,
+            apellido = usuario.apellido,
+            direccion = usuario.direccion
+        )
+        }
+    }
+
+    //Función para ejecutar la actualización con el backend
+    fun actualizarPerfil() {
+        val usuarioOriginal = _usuarioActivo.value ?: return
+        val estadoActual = _estado.value
+
+        // Crea un nuevo objeto de usuario con los datos modificados
+        val usuarioModificado = usuarioOriginal.copy(
+            nombre = estadoActual.nombre,
+            apellido = estadoActual.apellido,
+            direccion = estadoActual.direccion
+        )
+
+        viewModelScope.launch {
+            // Llama al repositorio (que llama a la API)
+            val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+
+            if (resultado != null) {
+                // Si la API confirma la actualización, actualiza el estado local en la app
+                _usuarioActivo.value = resultado
+            } else {
+                // Opcional: Manejar el error si la actualización falla
+            }
+        }
+    }
+    //Funcion para cambiar contraseña
+    fun cambiarContrasena() {
+        val estadoActual = _estado.value
+        val usuario = _usuarioActivo.value ?: return
+
+        // 1. Validaciones
+        if (estadoActual.nuevaClave.length < 8) {
+            _estado.update { it.copy(errores = it.errores.copy(nuevaClave = "La nueva contraseña debe tener al menos 8 caracteres")) }
+            return
+        }
+        if (estadoActual.nuevaClave != estadoActual.confirmarNuevaClave) {
+            _estado.update { it.copy(errores = it.errores.copy(nuevaClave = "Las contraseñas no coinciden")) }
+            return
+        }
+
+        // 2. Limpiamos errores y ejecutamos la llamada a la API
+        _estado.update { it.copy(errores = UsuarioErrores()) }
+
+        viewModelScope.launch {
+            // Asumimos que tienes una función en tu repositorio para esto
+            // que llama a un endpoint como PUT /api/v1/users/{id}/change-password
+            val exito = repository.cambiarContrasena(
+                usuarioId = usuario.id,
+                claveActual = estadoActual.claveActual,
+                nuevaClave = estadoActual.nuevaClave
+            )
+
+            if (!exito) {
+                // Si el backend dice que la contraseña actual es incorrecta
+                _estado.update { it.copy(errores = it.errores.copy(claveActual = "La contraseña actual es incorrecta")) }
+            }
+            // Si tiene éxito, no necesitamos hacer nada más, la contraseña ya se cambió en el backend.
+        }
+    }
     fun actualizarFotoPerfil(uri: Uri?) {
         val usuario = _usuarioActivo.value ?: return
         val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else "".toUri()

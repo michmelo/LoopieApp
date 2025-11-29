@@ -224,32 +224,25 @@ fun FormularioRegistro(
                         }
                     )
                     ExposedDropdownMenu(
-                        expanded = expanded,
+                        expanded = expanded && filteredCountries.isNotEmpty(),
                         onDismissRequest = { expanded = false }
                     ) {
-                        if (filteredCountries.isNotEmpty()) {
-                            ExposedDropdownMenu(
-                                expanded = expanded,
-                                onDismissRequest = { expanded = false }
-                            ) {
-                                filteredCountries.forEach { country ->
-                                    DropdownMenuItem(
-                                        text = { Text(country.name.common) },
-                                        onClick = {
-                                            viewModel.onCountrySelected(country) // Llama al ViewModel
-                                            expanded = false // Cierra el menú
-                                        },
-                                        // Mostramos la banderita también en cada item del menú
-                                        leadingIcon = {
-                                            AsyncImage(
-                                                model = country.flags.png,
-                                                contentDescription = null,
-                                                modifier = Modifier.size(24.dp)
-                                            )
-                                        }
+                        filteredCountries.forEach { country ->
+                            DropdownMenuItem(
+                                text = { Text(country.name.common) },
+                                onClick = {
+                                    viewModel.onCountrySelected(country) // Llama al ViewModel
+                                    expanded = false // Cierra el menú
+                                },
+                                // Mostramos la banderita también en cada item del menú
+                                leadingIcon = {
+                                    AsyncImage(
+                                        model = country.flags.png,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(24.dp)
                                     )
                                 }
-                            }
+                            )
                         }
                     }
                 }

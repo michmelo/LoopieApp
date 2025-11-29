@@ -3,6 +3,7 @@ package com.example.loopieapp.Repository
 import com.example.loopieapp.DAO.UsuarioDAO
 import com.example.loopieapp.Model.Usuario
 import com.example.loopieapp.Data.ApiService
+import com.example.loopieapp.Data.ChangePasswordRequest
 import com.example.loopieapp.Data.RetrofitClient
 import com.example.loopieapp.Data.LoginRequest
 
@@ -68,5 +69,22 @@ class UsuarioRepository (
             e.printStackTrace()
         }
         return null
+    }
+
+    // Llama al endpoint PUT /usuarios/{id}/change-password
+    suspend fun cambiarContrasena(
+        usuarioId: Int,
+        claveActual: String,
+        nuevaClave: String
+    ): Boolean {
+        return try {
+            val request = ChangePasswordRequest(claveActual, nuevaClave)
+            val response = apiService.changePassword(usuarioId, request)
+            // La operación fue exitosa si el backend devuelve un código 2xx
+            response.isSuccessful
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false // Si hay un error de red, asumimos que falló
+        }
     }
 }

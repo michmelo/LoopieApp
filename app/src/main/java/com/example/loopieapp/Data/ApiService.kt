@@ -54,6 +54,11 @@ interface ApiService{
     @PUT("v1/products/{idProducto}")
     suspend fun updateProduct(@Path("idProducto") idProducto: Int, @Body product: Producto): Response<Producto>
 
+    @PUT("v1/users/{id}/change-password")
+    suspend fun changePassword(
+        @Path("id") id: Int,
+        @Body request: ChangePasswordRequest): Response<Unit> // No esperamos que devuelva un cuerpo, solo un 200 OK
+
     // DELETE /api/productos/{idProducto} -> Elimina un producto
     @DELETE("v1/products/{idProducto}")
     suspend fun deleteProduct(@Path("idProducto") idProducto: Int): Response<Unit>
