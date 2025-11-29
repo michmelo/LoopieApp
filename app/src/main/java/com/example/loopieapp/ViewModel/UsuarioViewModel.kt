@@ -20,12 +20,16 @@ import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
 import com.example.loopieapp.Data.LoginRequest
 import com.example.loopieapp.Data.PreferenciasUsuario
+import com.example.loopieapp.Data.models.Country
 import com.example.loopieapp.Model.AppDatabase
+import com.example.loopieapp.Repository.CountryRepository
 import com.example.loopieapp.Services.NotificationService
+import kotlinx.coroutines.flow.StateFlow
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository: UsuarioRepository = UsuarioRepository()
+    private val countryRepository: CountryRepository = CountryRepository()
     private val preferencias: PreferenciasUsuario = PreferenciasUsuario(application)
     private val notificationService = NotificationService(application)
 
@@ -38,6 +42,24 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val _isLoading = MutableStateFlow(true) // Empieza como 'true' porque estamos cargando
     val isLoading = _isLoading.asStateFlow()
 
+    //Logica para integrar la api country
+    private val _allCountries = MutableStateFlow<List<Country>>(emptyList())
+
+    private val _filteredCountries = MutableStateFlow<List<Country>>(emptyList())
+    val filteredCountries: StateFlow<List<Country>> = _filteredCountries.asStateFlow()
+
+    private val _countries = MutableStateFlow<List<Country>>(emptyList())
+    val countries: StateFlow<List<Country>> = _countries.asStateFlow()
+
+    private val _selectedCountry = MutableStateFlow<Country?>(null)
+    val selectedCountry: StateFlow<Country?> = _selectedCountry.asStateFlow()
+
+    private val _countrySearchText = MutableStateFlow("")
+    val countrySearchText: StateFlow<String> = _countrySearchText.asStateFlow()
+
+    //private val _countryInfo = MutableStateFlow<Country?>(null)
+    //val countryInfo: StateFlow<Country?> = _countryInfo.asStateFlow()
+
     init {
         // Obtenemos el DAO y creamos el repositorio DENTRO del init.
         //val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
@@ -47,6 +69,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
+                val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
+
+                _allCountries.value = sortedCountries
+                _filteredCountries.value = sortedCountries // La UI ahora tiene la lista completa
+
                 if (correoGuardado.isNullOrBlank()) {
                     _isLoading.value = false //No hay sesión
                 } else{
@@ -59,7 +86,45 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                 _isLoading.value = false //Termina la carga
 
             }
+            cargarPaises()
         }
+        viewModelScope.launch {
+            countries.collect { allCountries ->
+                _filteredCountries.value = allCountries
+            }
+        }
+    }
+
+    //Función para cargar la lista de paises
+    private fun cargarPaises() {
+        viewModelScope.launch {
+            val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
+            _allCountries.value = sortedCountries
+            _filteredCountries.value = sortedCountries
+        }
+    }
+
+    fun onCountrySearchChange(text: String) {
+        _countrySearchText.value = text
+        _selectedCountry.value = null //Limpia la selección si el usuario empieza a escribir de nuevo.
+        _estado.update { it.copy(errores = it.errores.copy(direccion = null)) } // Limpia el error de validación.
+
+        if (text.isNotBlank()) {
+            _filteredCountries.value = _allCountries.value.filter { country ->
+                country.name.common.contains(text, ignoreCase = true)
+            }
+        } else {
+            // Si el campo está vacío, muestra de nuevo la lista completa.
+            _filteredCountries.value = _allCountries.value
+        }
+    }
+
+
+    //Funcion para cuando el usuario selecciona un pais del menu
+    fun onCountrySelected(country: Country) {
+        _selectedCountry.value = country
+        _countrySearchText.value = country.name.common
+        _filteredCountries.value = emptyList()
     }
 
     //Funciones para el formualario
@@ -87,6 +152,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             return false }
         if (estadoActual.direccion.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(direccion = "Debe ingresar una dirección")) }
             return false }
+        if (selectedCountry.value == null) {
+            // Si no se ha seleccionado ningún país de la lista, es un error.
+            _estado.update { it.copy(errores = it.errores.copy(direccion = "Debes seleccionar un país")) }
+            return false
+        }
         if (!estadoActual.aceptaTerminos) { _estado.update { it.copy(errores = it.errores.copy(aceptaTerminos = "Debes aceptar los términos y condiciones")) }
             return false }
         _estado.update { it.copy(errores = UsuarioErrores()) }

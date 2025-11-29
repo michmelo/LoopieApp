@@ -1,7 +1,6 @@
 package com.example.loopieapp.Components
 
-import FormularioRegistro
-import android.app.Application
+import com.example.loopieapp.View.FormularioRegistro
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -11,9 +10,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -30,7 +27,6 @@ import com.example.loopieapp.View.PantallaPrincipal
 import com.example.loopieapp.View.Perfil
 import com.example.loopieapp.View.SplashScreen
 import com.example.loopieapp.ViewModel.UsuarioViewModel
-import com.example.loopieapp.ViewModel.UsuarioViewModelFactory
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
