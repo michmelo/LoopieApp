@@ -30,6 +30,8 @@ import com.example.loopieapp.ViewModel.UsuarioViewModel
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.LaunchedEffect
+import com.example.loopieapp.View.Carrito
+import com.example.loopieapp.View.EditProfileScreen
 import com.example.loopieapp.ViewModel.ProductoViewModel
 
 @Composable
@@ -158,10 +160,20 @@ fun MainScreen () {
             composable("FormularioRegistro") {
                 FormularioRegistro(navController = navController, viewModel = usuarioViewModel)
             }
+            composable(route = AppScreen.EditProfile.route) {
+                EditProfileScreen(
+                    usuarioViewModel = usuarioViewModel,
+                    onProfileUpdated = {
+                        // Acción para volver a la pantalla anterior (Perfil)
+                        navController.popBackStack()
+                    }
+                )
+            }
+
             // Pantallas CON barra de navegación
             // Rutas principales
             composable(Destinos.PANTALLAPRINCIPAL.route) {
-                PantallaPrincipal(navController = navController)
+                PantallaPrincipal(navController = navController, productoViewModel = productoViewModel)
             }
             composable(
                 route = Destinos.PERFIL.route, // Define la ruta con un placeholder
@@ -180,8 +192,13 @@ fun MainScreen () {
                     correoUsuario = correo,
                     viewModel = productoViewModel)
             }
-
             // Desde aquí otras rutas necesarias a futuro, ej"Detalle de Producto", etc.
+            composable(
+                route = Destinos.CARRITO.route) {
+                Carrito(
+                    navController = navController
+                ) // Llama a tu nuevo Composable
+            }
         }
     }
 }

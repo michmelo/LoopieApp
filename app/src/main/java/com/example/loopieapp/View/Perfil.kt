@@ -38,6 +38,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
 import com.example.loopieapp.Components.ImagenInteligente
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import com.example.loopieapp.Components.AppScreen
 import com.example.loopieapp.Components.Destinos
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Repository.UsuarioRepository
@@ -93,23 +94,6 @@ fun Perfil(
             cameraUri = newUri
             takePictureLauncher.launch(newUri)
         }
-    }
-
-    if (mostrarDialogo) {
-        // LaunchedEffect asegura que esto se llame solo una vez cuando el diálogo aparece
-        LaunchedEffect(Unit) {
-            viewModel.cargarDatosParaEdicion()
-        }
-        ModificarPerfilDialog(
-            viewModel = viewModel,
-            onConfirm = {
-                viewModel.actualizarPerfil()
-                mostrarDialogo = false // Cierra el diálogo
-            },
-            onDismiss = {
-                mostrarDialogo = false // Cierra el diálogo
-            }
-        )
     }
 
     Scaffold(
@@ -213,7 +197,7 @@ fun Perfil(
                     titulo = "Editar perfil",
                     descripcion = "Gestiona tus datos personales",
                     onClick = {
-                        mostrarDialogo = true
+                        navController.navigate(AppScreen.EditProfile.route)
                     }
                 )
             }

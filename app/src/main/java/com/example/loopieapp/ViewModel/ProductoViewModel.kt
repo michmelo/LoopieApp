@@ -32,9 +32,60 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     private val _productoSeleccionado = MutableStateFlow<Producto?>(null)
     val productoSeleccionado: StateFlow<Producto?> = _productoSeleccionado.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    val isLoading = _isLoading.asStateFlow()
+
     init {
         //Cargar los productos desde la base de datos al iniciar el ViewModel
-        obtenerProductos()
+        cargarProductos()
+    }
+
+    fun cargarProductos() {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                // --- LÓGICA PARA OBTENER PRODUCTOS ---
+                //_productos.value = productoRepository.obtenerTodosLosProductos()
+
+                // Ejemplo con datos de prueba
+                _productos.value = listOf(
+                    Producto(
+                        idProducto = 1,
+                        nombre = "Polera Estampada",
+                        descripcion = "Polera de algodón con estampado frontal.",
+                        precio = 19990.0,
+                        categoria = "Poleras",
+                        stock = 50,
+                        rating = 4.5f,
+                        imagen = "https://falabella.scene7.com/is/image/Falabella/gsc_113886561_941074_1"
+                    ),
+                    Producto(
+                        idProducto = 2,
+                        nombre = "Jeans Slim Fit",
+                        descripcion = "Pantalón de mezclilla azul, corte slim.",
+                        precio = 29990.0,
+                        categoria = "Pantalones",
+                        rating = 4.7f,
+                        imagen = "https://falabella.scene7.com/is/image/Falabella/882069792_1"
+                    ),
+                    Producto(
+                        idProducto = 3,
+                        nombre = "Chaqueta de Cuero",
+                        descripcion = "Chaqueta de cuero sintético, color negro.",
+                        precio = 49990.0,
+                        categoria = "Chaquetas",
+                        stock = 15,
+                        rating = 4.9f,
+                        imagen = "https://falabella.scene7.com/is/image/Falabella/882897262_1"
+                    )
+                )
+
+            } catch (e: Exception) {
+                _productos.value = emptyList() // Limpia la lista en caso de error
+            } finally {
+                _isLoading.value = false
+            }
+        }
     }
 
     // CREATE - Crear nuevo producto
@@ -84,11 +135,11 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     }
 
     // READ - Buscar productos
-    fun obtenerProductos() { //Lista de todos los productos
+    fun obtenerProductos() {
         viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true) }
             try {
-                //Lectura desde el repositorio
+
                 _productos.value = repository.obtenerProductos()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
@@ -103,7 +154,7 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
         }
     }
     
-    fun buscarProductos(termino: String) { //Buscar productos por nombre, descripcion o categoria
+    fun buscarProductos(termino: String){
         viewModelScope.launch {
             try {
                 val productosFiltrados = repository.obtenerProductos()
@@ -123,7 +174,7 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     // UPDATE - Actualizar producto
     fun editarProducto() : Boolean {
         val currentState = _uiState.value
-        val productoActual = _productoSeleccionado.value ?: return false //Obtiene el producto de su propio estado
+        val productoActual = _productoSeleccionado.value ?: return false
         
         // Validaciones
         val errores = validarProducto(currentState)
