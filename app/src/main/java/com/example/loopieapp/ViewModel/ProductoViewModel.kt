@@ -9,8 +9,11 @@ import androidx.lifecycle.viewModelScope
 import com.example.loopieapp.Model.Producto
 import com.example.loopieapp.Repository.ProductoRepository
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.io.File
@@ -24,6 +27,12 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     private val _productos = MutableStateFlow<List<Producto>>(emptyList())
     val productos: StateFlow<List<Producto>> = _productos.asStateFlow()
 
+    private val _todosLosProductos = MutableStateFlow<List<Producto>>(emptyList())
+
+    //Categorias para los productos
+    private val _categoriaSeleccionada = MutableStateFlow("Todos")
+    val categoriaSeleccionada = _categoriaSeleccionada.asStateFlow()
+
     //Estado del formulario y de la UI
     private val _uiState = MutableStateFlow(ProductoUIState())
     val uiState: StateFlow<ProductoUIState> = _uiState.asStateFlow()
@@ -35,9 +44,33 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
 
+    // Expone la lista de categorías únicas, incluyendo "Todos".
+    val categoriasDisponibles = _todosLosProductos.combine(_categoriaSeleccionada) { productos, _ ->
+        listOf("Todos") + productos.map { it.categoria }.distinct()
+    }.stateIn(viewModelScope,
+        SharingStarted.WhileSubscribed(), listOf("Todos"))
+
+    // Expone la lista FILTRADA de productos. Se actualiza automáticamente
+    // cuando `_todosLosProductos` o `_categoriaSeleccionada` cambian.
+    val productosFiltrados = _todosLosProductos
+        .combine(_categoriaSeleccionada) { productos, categoria ->
+            if (categoria == "Todos") {
+                productos
+            } else {
+                productos.filter { it.categoria == categoria }
+            }
+        }.stateIn(viewModelScope,
+            SharingStarted.WhileSubscribed(), emptyList())
+
+
+
     init {
         //Cargar los productos desde la base de datos al iniciar el ViewModel
         cargarProductos()
+    }
+
+    fun seleccionarCategoria(categoria: String) {
+        _categoriaSeleccionada.value = categoria
     }
 
     fun cargarProductos() {
@@ -48,7 +81,7 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
                 //_productos.value = productoRepository.obtenerTodosLosProductos()
 
                 // Ejemplo con datos de prueba
-                _productos.value = listOf(
+                _todosLosProductos.value = listOf(
                     Producto(
                         idProducto = 1,
                         nombre = "Polera Estampada",
@@ -57,7 +90,7 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
                         categoria = "Poleras",
                         stock = 50,
                         rating = 4.5f,
-                        imagen = "https://falabella.scene7.com/is/image/Falabella/gsc_113886561_941074_1"
+                        imagen = "https://leviscl.vtexassets.com/arquivos/ids/1423640-1600-auto?v=638877534867370000&width=1600&height=auto&aspect=true"
                     ),
                     Producto(
                         idProducto = 2,
@@ -66,7 +99,7 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
                         precio = 29990.0,
                         categoria = "Pantalones",
                         rating = 4.7f,
-                        imagen = "https://falabella.scene7.com/is/image/Falabella/882069792_1"
+                        imagen = "https://wrangler.cl/cdn/shop/files/139911_1.jpg?v=1756141016&width=600"
                     ),
                     Producto(
                         idProducto = 3,
@@ -76,10 +109,10 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
                         categoria = "Chaquetas",
                         stock = 15,
                         rating = 4.9f,
-                        imagen = "https://falabella.scene7.com/is/image/Falabella/882897262_1"
+                        imagen = "https://fashionspark.com/cdn/shop/files/870790202_1_2048x2048.jpg?v=1756404650"
                     )
                 )
-
+                _categoriaSeleccionada.value = "Todos"
             } catch (e: Exception) {
                 _productos.value = emptyList() // Limpia la lista en caso de error
             } finally {

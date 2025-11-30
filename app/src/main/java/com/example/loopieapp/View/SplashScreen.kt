@@ -1,6 +1,7 @@
 package com.example.loopieapp.View
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
@@ -18,6 +19,8 @@ fun SplashScreen() {
         Text("¡Bienvenido a Loopie!", fontSize = 24.sp)
         // Aquí es donde en el futuro mostrarás la lista de productos, etc.
     }
+
+    Spacer(modifier = Modifier.fillMaxSize())
 
     Box(
         modifier = Modifier.fillMaxSize(),

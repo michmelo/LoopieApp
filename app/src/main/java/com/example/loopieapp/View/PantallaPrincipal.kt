@@ -6,17 +6,21 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -44,6 +48,9 @@ import com.example.loopieapp.ViewModel.ProductoViewModel
 @Composable
 fun PantallaPrincipal(navController: NavController, productoViewModel: ProductoViewModel){
     val productos by productoViewModel.productos.collectAsState()
+    val productosFiltrados by productoViewModel.productosFiltrados.collectAsState()
+    val categorias by productoViewModel.categoriasDisponibles.collectAsState()
+    val categoriaSeleccionada by productoViewModel.categoriaSeleccionada.collectAsState()
     val isLoading by productoViewModel.isLoading.collectAsState()
 
     Scaffold(
@@ -51,16 +58,44 @@ fun PantallaPrincipal(navController: NavController, productoViewModel: ProductoV
             TopAppBar(title = { Text("¡Bienvenido a Loopie!") })
         }
     ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-        ) {
+        Column (modifier = Modifier.padding(innerPadding)){
             if (isLoading) {
-                // Muestra un indicador de carga si los datos se están obteniendo
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                ) {
+                    // Muestra un indicador de carga si los datos se están obteniendo
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                }
             } else {
-                // 3. Usa LazyColumn para mostrar la lista eficientemente
+                // Barra de filtros por categoria
+                LazyRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(categorias) { categoria ->
+                        val isSelected = categoria == categoriaSeleccionada
+                        FilterChip(
+                            selected = isSelected,
+                            onClick = { productoViewModel.seleccionarCategoria(categoria) },
+                            label = { Text(categoria) },
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                    }
+                }
+                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                    items(productosFiltrados) { producto ->
+                        ProductoCard(
+                            producto = producto,
+                            onProductClick = {
+                                navController.navigate("detalleProducto/${producto.idProducto}")
+                            }
+                        )
+                    }
+                }
+                //Usa LazyColumn para mostrar la lista eficientemente
                 LazyColumn(modifier = Modifier.fillMaxSize()) {
                     items(productos) { producto ->
                         ProductoCard(
