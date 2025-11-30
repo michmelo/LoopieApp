@@ -10,7 +10,7 @@ import com.example.loopieapp.ViewModel.UsuarioViewModel // Asegúrate de importa
 
 @Composable
 fun EditProfileScreen(
-    usuarioViewModel: UsuarioViewModel = viewModel(),
+    usuarioViewModel: UsuarioViewModel,
     onProfileUpdated: () -> Unit // Lambda para navegar hacia atrás cuando se actualice
 ) {
     // 1. Observa el estado del formulario desde el ViewModel.
@@ -33,9 +33,7 @@ fun EditProfileScreen(
         // --- Campo Nombre ---
         OutlinedTextField(
             value = uiState.nombre, // Lee el valor del estado
-            onValueChange = { nuevoValor ->
-                usuarioViewModel.onNombreChange(nuevoValor) // Notifica el cambio al ViewModel
-            },
+            onValueChange = {usuarioViewModel.onNombreChange(it)}, // Notifica el cambio al ViewModel
             label = { Text("Nombre") },
             modifier = Modifier.fillMaxWidth()
         )

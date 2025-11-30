@@ -49,11 +49,16 @@ fun MainScreen () {
     val usuarioActivo by usuarioViewModel.usuarioActivo.collectAsState()
     val isLoading by usuarioViewModel.isLoading.collectAsState()
 
+    val navegacionInicialRealizada by usuarioViewModel.navegacionInicialRealizada.collectAsState()
+
     /*val productoFactory = remember(application) {
         ProductoViewModelFactory(application)
     }*/
 
     LaunchedEffect(key1 =usuarioActivo, key2 = isLoading) {
+        if (navegacionInicialRealizada) {
+            return@LaunchedEffect
+        }
         if (isLoading) {
             return@LaunchedEffect
         }
@@ -64,6 +69,7 @@ fun MainScreen () {
                 }
                 launchSingleTop = true
             }
+            usuarioViewModel.onNavegacionInicialCompletada()
         }
         else {
             navController.navigate("HomeScreen") {
@@ -72,6 +78,7 @@ fun MainScreen () {
                 }
                 launchSingleTop = true
             }
+            usuarioViewModel.onNavegacionInicialCompletada()
         }
     }
     Scaffold(

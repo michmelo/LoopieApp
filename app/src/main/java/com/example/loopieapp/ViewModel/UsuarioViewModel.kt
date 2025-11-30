@@ -5,6 +5,7 @@ import UsuarioUIState
 import android.app.Application
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.compose.animation.core.copy
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -20,6 +21,7 @@ import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
 import com.example.loopieapp.Data.LoginRequest
 import com.example.loopieapp.Data.PreferenciasUsuario
+import com.example.loopieapp.Data.UserDataStore
 import com.example.loopieapp.Data.models.Country
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Repository.CountryRepository
@@ -32,12 +34,13 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val countryRepository: CountryRepository = CountryRepository()
     private val preferencias: PreferenciasUsuario = PreferenciasUsuario(application)
     private val notificationService = NotificationService(application)
+    private val dataStore = UserDataStore(application)
 
     private val _estado = MutableStateFlow(UsuarioUIState())
     val estado = _estado.asStateFlow()
 
     private val _usuarioActivo = MutableStateFlow<Usuario?>(null)
-    val usuarioActivo = _usuarioActivo.asStateFlow()
+    val usuarioActivo: StateFlow<Usuario?> = _usuarioActivo.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true) // Empieza como 'true' porque estamos cargando
     val isLoading = _isLoading.asStateFlow()
@@ -60,6 +63,14 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     //private val _countryInfo = MutableStateFlow<Country?>(null)
     //val countryInfo: StateFlow<Country?> = _countryInfo.asStateFlow()
 
+    private val _navegacionInicialRealizada = MutableStateFlow(false)
+    val navegacionInicialRealizada: StateFlow<Boolean> = _navegacionInicialRealizada.asStateFlow()
+
+    // Función para marcar que ya se navegó
+    fun onNavegacionInicialCompletada() {
+        _navegacionInicialRealizada.value = true
+    }
+
     init {
         // Obtenemos el DAO y creamos el repositorio DENTRO del init.
         //val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
@@ -67,6 +78,11 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         //preferencias = PreferenciasUsuario(application)
 
         viewModelScope.launch {
+            viewModelScope.launch {
+                dataStore.getUsuarioActivo().collect { usuario ->
+                    _usuarioActivo.value = usuario
+                }
+            }
             try {
                 val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
                 val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
@@ -216,7 +232,7 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             if (usuario != null) {
                 _usuarioActivo.value = usuario
                 // Guarda la sesión en SharedPreferences
-                preferencias.guardarCorreoUsuarioActivo(usuario.correo)
+                dataStore.guardarUsuarioActivo(usuario)
             } else {
                 // Error: Muestra un mensaje al usuario
                 if (correo == null) {
@@ -229,34 +245,45 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     fun cerrarSesion() {
         _usuarioActivo.value = null
         _estado.value = UsuarioUIState() // Limpia el estado del formulario
-        preferencias.guardarCorreoUsuarioActivo(null)
+        viewModelScope.launch {
+            dataStore.limpiarUsuarioActivo()
+        }
     }
 
     //Función para pre-cargar el formulario con los datos actuales del usuario
     fun cargarDatosParaEdicion() {
-        val usuario = _usuarioActivo.value ?: return
-        _estado.update {it.copy(
-            nombre = usuario.nombre,
-            apellido = usuario.apellido,
-            direccion = usuario.direccion
-        )
+        _usuarioActivo.value?.let { usuario ->
+            _estado.value = UsuarioUIState(
+                nombre = usuario.nombre,
+                apellido = usuario.apellido,
+                direccion = usuario.direccion
+            )
         }
     }
 
     //Función para ejecutar la actualización con el backend
     fun actualizarPerfil() {
         val usuarioOriginal = _usuarioActivo.value ?: return
-        val estadoActual = _estado.value
+        val estadoActualDelFormulario = _estado.value
 
+        // Crea una copia del usuario con los datos del formulario
+        val usuarioModificado = usuarioOriginal.copy(
+            nombre = estadoActualDelFormulario.nombre,
+            apellido = estadoActualDelFormulario.apellido,
+            direccion = estadoActualDelFormulario.direccion
+        )
+/*
         // Crea un nuevo objeto de usuario con los datos modificados
         val usuarioModificado = usuarioOriginal.copy(
             nombre = estadoActual.nombre,
             apellido = estadoActual.apellido,
             direccion = estadoActual.direccion
-        )
+        )*/
+
+        _usuarioActivo.value = usuarioModificado
 
         viewModelScope.launch {
-            // Llama al repositorio (que llama a la API)
+            /*// Llama al repositorio (que llama a la API)
             val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
 
             if (resultado != null) {
@@ -264,6 +291,25 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                 _usuarioActivo.value = resultado
             } else {
                 // Opcional: Manejar el error si la actualización falla
+            }*/
+            try {
+                dataStore.guardarUsuarioActivo(usuarioModificado)
+                // Llama al repositorio para guardar en el backend/base de datos
+                val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+                if (resultado == null) {
+                    // --- ¡ESTE ES EL PASO CLAVE PARA LA ACTUALIZACIÓN VISUAL! ---
+                    // Al actualizar _usuarioActivo, la pantalla Perfil.kt se redibuja.
+                    _usuarioActivo.value = usuarioOriginal
+                    // Opcional: También guarda en DataStore para mantener la sesión actualizada
+                    dataStore.guardarUsuarioActivo(usuarioOriginal)
+                } else {
+                    // Opcional: Manejar el error si la actualización falla
+                }
+            } catch (e: Exception) {
+                // Manejar el error
+                _usuarioActivo.value = usuarioOriginal
+                dataStore.guardarUsuarioActivo(usuarioOriginal)
+                e.printStackTrace()
             }
         }
     }
