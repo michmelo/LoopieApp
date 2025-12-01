@@ -5,6 +5,8 @@ import UsuarioUIState
 import android.app.Application
 import android.content.ContentResolver
 import android.net.Uri
+import androidx.compose.animation.core.copy
+import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.loopieapp.Model.Usuario
@@ -17,114 +19,189 @@ import androidx.lifecycle.viewModelScope
 import java.io.File
 import java.io.FileOutputStream
 import androidx.lifecycle.ViewModel
+import com.example.loopieapp.Data.LoginRequest
 import com.example.loopieapp.Data.PreferenciasUsuario
+import com.example.loopieapp.Data.UserDataStore
+import com.example.loopieapp.Data.models.Country
 import com.example.loopieapp.Model.AppDatabase
+import com.example.loopieapp.Repository.CountryRepository
 import com.example.loopieapp.Services.NotificationService
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlin.text.equals
+import kotlin.text.find
+import android.util.Log
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val repository: UsuarioRepository
-    private val preferencias: PreferenciasUsuario
+    private val repository: UsuarioRepository = UsuarioRepository()
+    private val countryRepository: CountryRepository = CountryRepository()
+    private val preferencias: PreferenciasUsuario = PreferenciasUsuario(application)
+    private val notificationService = NotificationService(application)
+    private val dataStore = UserDataStore(application)
 
     private val _estado = MutableStateFlow(UsuarioUIState())
     val estado = _estado.asStateFlow()
 
     private val _usuarioActivo = MutableStateFlow<Usuario?>(null)
-    val usuarioActivo = _usuarioActivo.asStateFlow()
+    val usuarioActivo: StateFlow<Usuario?> = _usuarioActivo.asStateFlow()
 
     private val _isLoading = MutableStateFlow(true) // Empieza como 'true' porque estamos cargando
     val isLoading = _isLoading.asStateFlow()
 
-    private val notificationService = NotificationService(application)
+    //Logica para integrar la api country
+    private val _allCountries = MutableStateFlow<List<Country>>(emptyList())
+
+    private val _filteredCountries = MutableStateFlow<List<Country>>(emptyList())
+    val filteredCountries: StateFlow<List<Country>> = _filteredCountries.asStateFlow()
+
+    private val _countries = MutableStateFlow<List<Country>>(emptyList())
+    val countries: StateFlow<List<Country>> = _countries.asStateFlow()
+
+    private val _selectedCountry = MutableStateFlow<Country?>(null)
+    val selectedCountry: StateFlow<Country?> = _selectedCountry.asStateFlow()
+
+    private val _countrySearchText = MutableStateFlow("")
+    val countrySearchText: StateFlow<String> = _countrySearchText.asStateFlow()
+
+    private val _paisDelUsuario = MutableStateFlow<Country?>(null)
+    val paisDelUsuario: StateFlow<Country?> = _paisDelUsuario.asStateFlow()
+
+    //private val _countryInfo = MutableStateFlow<Country?>(null)
+    //val countryInfo: StateFlow<Country?> = _countryInfo.asStateFlow()
+
+    private val TAG = "UsuarioViewModel_DEBUG"
+
+    val perfilEnriquecido: StateFlow<Pair<Usuario, Country?>?> =
+        _usuarioActivo.combine(_allCountries) { usuario, paises ->
+            if (usuario != null) {
+                // Busca en la lista de todos los países el que coincida con la dirección del usuario.
+                val paisDelUsuario = paises.find { it.name.common.equals(usuario.direccion, ignoreCase = true) }
+                // Devuelve un par con el usuario y el país encontrado (o null si no lo encuentra).
+                Pair(usuario, paisDelUsuario)
+            } else {
+                null // Si no hay usuario activo, devuelve null.
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    private val _navegacionInicialRealizada = MutableStateFlow(false)
+    val navegacionInicialRealizada: StateFlow<Boolean> = _navegacionInicialRealizada.asStateFlow()
+
+    // Función para marcar que ya se navegó
+    fun onNavegacionInicialCompletada() {
+        _navegacionInicialRealizada.value = true
+    }
 
     init {
         // Obtenemos el DAO y creamos el repositorio DENTRO del init.
-        val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
-        repository = UsuarioRepository(usuarioDao)
-        preferencias = PreferenciasUsuario(application)
-
+        //val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
+        //repository = UsuarioRepository(usuarioDao)
+        //preferencias = PreferenciasUsuario(application)
         viewModelScope.launch {
-            val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
-            if (correoGuardado.isNullOrBlank()) {
-                _isLoading.value = false
-            } else{
-                val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correoGuardado }
-                _usuarioActivo.value = usuarioEncontrado
-                _isLoading.value = false
+            try {
+                //val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
+                Log.d(TAG, "INIT: Cargando países desde la red...")
+                val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
+                _allCountries.value = sortedCountries
+                Log.d(TAG, "INIT: ¡PAÍSES CARGADOS! Total: ${sortedCountries.size}")
+                _filteredCountries.value = sortedCountries // La UI ahora tiene la lista completa
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.e(TAG, "INIT: ERROR al cargar países", e)
+            }
+            dataStore.getUsuarioActivo().collect { usuario ->
+                Log.d(TAG, "COLLECT: DataStore emitió un nuevo usuario -> ${usuario?.nombre}")
+                _usuarioActivo.value = usuario // Actualiza el usuario
+
+                // PASO C: ¡LA LÓGICA MANUAL Y DIRECTA!
+                if (usuario != null) {
+                    Log.d(TAG, "BUSCANDO PAÍS: La dirección del usuario es -> '${usuario?.direccion}'")
+                    // Si hay un usuario, busca su país en la lista que ya cargamos.
+                    val paisEncontrado = _allCountries.value.find {
+                        it.name.common.equals(usuario.direccion, ignoreCase = true)
+                    }
+                    Log.d(TAG, "¡ÉXITO! País encontrado: ${paisEncontrado?.name?.common}. URL Bandera: ${paisEncontrado?.flags?.png}")
+                    _paisDelUsuario.value = paisEncontrado // Actualiza el StateFlow del país
+                } else {
+                    // Si no hay usuario (cierre de sesión), limpia el país.
+                    Log.e(TAG, "¡FALLO! No se encontró ningún país que coincida con la dirección '${usuario?.direccion}' en la lista de ${_allCountries.value.size} países.")
+                    _paisDelUsuario.value = null
+                    Log.d(TAG, "CIERRE DE SESIÓN: Usuario es nulo, limpiando país.")
+                }
+                _isLoading.value = false // La carga siempre termina aquí.
             }
         }
     }
 
-    //Funciones para el formualario
-    fun onNombreChange(valor: String) {
-        _estado.update { it.copy(nombre = valor, errores = it.errores.copy(nombre = null)) }
-    }
-
-    fun onApellidoChange(valor: String) {
-        _estado.update { it.copy(apellido = valor, errores = it.errores.copy(apellido = null)) }
-    }
-
-    fun onCorreoChange(valor: String) {
-        _estado.update { it.copy(correo = valor, errores = it.errores.copy(correo = null)) }
-    }
-
-    fun onClaveChange(valor: String) {
-        _estado.update { it.copy(clave = valor, errores = it.errores.copy(clave = null)) }
-    }
-
-    fun onConfirmarClaveChange(valor: String) {
-        _estado.update {
-            it.copy(
-                confirmarClave = valor,
-                errores = it.errores.copy(confirmarClave = null)
-            )
+    //Función para cargar la lista de paises
+    private fun cargarPaises() {
+        viewModelScope.launch {
+            val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
+            _allCountries.value = sortedCountries
+            _filteredCountries.value = sortedCountries
         }
     }
 
-    fun onDireccionChange(valor: String) {
-        _estado.update { it.copy(direccion = valor, errores = it.errores.copy(direccion = null)) }
+    fun onCountrySearchChange(text: String) {
+        _countrySearchText.value = text
+        _selectedCountry.value = null //Limpia la selección si el usuario empieza a escribir de nuevo.
+        _estado.update { it.copy(errores = it.errores.copy(direccion = null)) } // Limpia el error de validación.
+
+        if (text.isNotBlank()) {
+            _filteredCountries.value = _allCountries.value.filter { country ->
+                country.name.common.contains(text, ignoreCase = true)
+            }
+        } else {
+            // Si el campo está vacío, muestra de nuevo la lista completa.
+            _filteredCountries.value = _allCountries.value
+        }
     }
 
-    fun onAceptaTerminosChange(valor: Boolean) {
-        _estado.update { it.copy(aceptaTerminos = valor) }
+    //Funcion para cuando el usuario selecciona un pais del menu
+    fun onCountrySelected(country: Country) {
+        _selectedCountry.value = country
+        _countrySearchText.value = country.name.common
+        _filteredCountries.value = emptyList()
     }
+
+    //Funciones para el formualario
+    fun onNombreChange(valor: String) { _estado.update { it.copy(nombre = valor, errores = it.errores.copy(nombre = null)) } }
+    fun onApellidoChange(valor: String) { _estado.update { it.copy(apellido = valor, errores = it.errores.copy(apellido = null)) } }
+    fun onCorreoChange(valor: String) { _estado.update { it.copy(correo = valor, errores = it.errores.copy(correo = null)) } }
+    fun onClaveChange(valor: String) { _estado.update { it.copy(clave = valor, errores = it.errores.copy(clave = null)) } }
+    fun onConfirmarClaveChange(valor: String) { _estado.update { it.copy(confirmarClave = valor, errores = it.errores.copy(confirmarClave = null)) } }
+    fun onDireccionChange(valor: String) { _estado.update { it.copy(direccion = valor, errores = it.errores.copy(direccion = null)) } }
+    fun onAceptaTerminosChange(valor: Boolean) { _estado.update { it.copy(aceptaTerminos = valor) } }
+    fun onClaveActualChange(valor: String) { _estado.update { it.copy(claveActual = valor, errores = it.errores.copy(claveActual = null)) } }
+    fun onNuevaClaveChange(valor: String) { _estado.update { it.copy(nuevaClave = valor, errores = it.errores.copy(nuevaClave = null)) } }
+    fun onConfirmarNuevaClaveChange(valor: String) { _estado.update { it.copy(confirmarNuevaClave = valor, errores = it.errores.copy(confirmarNuevaClave = null)) } }
+
 
     // Validaciones formulario
     fun validarFormulario(): Boolean {
         val estadoActual = _estado.value
-
         _estado.update { it.copy(errores = UsuarioErrores()) }
-
-        if (estadoActual.nombre.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(nombre = "Debe ingresar un nombre")) }
+        if (estadoActual.nombre.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(nombre = "Debe ingresar un nombre")) }
+            return false }
+        if (estadoActual.apellido.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(apellido = "Debe ingresar un apellido")) }
+            return false }
+        if (!estadoActual.correo.contains("@")) { _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
+            return false }
+        if (estadoActual.clave.length < 8) { _estado.update { it.copy(errores = it.errores.copy(clave = "Contraseña debe tener al menos 8 carácteres")) }
+            return false }
+        if (estadoActual.clave != estadoActual.confirmarClave) { _estado.update { it.copy(errores = it.errores.copy(confirmarClave = "Las contraseñas no coinciden")) }
+            return false }
+        if (estadoActual.direccion.isBlank()) { _estado.update { it.copy(errores = it.errores.copy(direccion = "Debe ingresar una dirección")) }
+            return false }
+        if (selectedCountry.value == null) {
+            // Si no se ha seleccionado ningún país de la lista, es un error.
+            _estado.update { it.copy(errores = it.errores.copy(direccion = "Debes seleccionar un país")) }
             return false
         }
-        if (estadoActual.apellido.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(apellido = "Debe ingresar un apellido")) }
-            return false
-        }
-        if (!estadoActual.correo.contains("@")) {
-            _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
-            return false
-        }
-        if (estadoActual.clave.length < 8) {
-            _estado.update { it.copy(errores = it.errores.copy(clave = "Contraseña debe tener al menos 8 carácteres")) }
-            return false
-        }
-        if (estadoActual.clave != estadoActual.confirmarClave) {
-            _estado.update {
-                it.copy(errores = it.errores.copy(confirmarClave = "Las contraseñas no coinciden"))
-            }
-            return false
-        }
-        if (estadoActual.direccion.isBlank()) {
-            _estado.update { it.copy(errores = it.errores.copy(direccion = "Debe ingresar una dirección")) }
-            return false
-        }
-        if (!estadoActual.aceptaTerminos) {
-            _estado.update { it.copy(errores = it.errores.copy(aceptaTerminos = "Debes aceptar los términos y condiciones")) }
-            return false
-        }
+        if (!estadoActual.aceptaTerminos) { _estado.update { it.copy(errores = it.errores.copy(aceptaTerminos = "Debes aceptar los términos y condiciones")) }
+            return false }
         _estado.update { it.copy(errores = UsuarioErrores()) }
         return true
     }
@@ -133,57 +210,200 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     fun validarInicioSesion(): Boolean {
         val estadoActual = _estado.value
         _estado.update { it.copy(errores = UsuarioErrores()) }
-
-        if (!estadoActual.correo.contains("@") || !estadoActual.correo.contains(".")){
-            _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
-            return false
-        }
-        if (estadoActual.clave.isEmpty()) {
-            _estado.update { it.copy(errores = it.errores.copy(clave = "Debe ingresar una contraseña")) }
-            return false
-        }
+        if (!estadoActual.correo.contains("@") || !estadoActual.correo.contains(".")){ _estado.update { it.copy(errores = it.errores.copy(correo = "Correo inválido")) }
+            return false }
+        if (estadoActual.clave.isEmpty()) { _estado.update { it.copy(errores = it.errores.copy(clave = "Debe ingresar una contraseña")) }
+            return false }
         return true
     }
+
     fun guardarUsuario() {
-            if (validarFormulario()) {
-                viewModelScope.launch {
-                    val estadoActual = _estado.value
-                    val nuevoUsuario = Usuario(
-                        nombre = estadoActual.nombre,
-                        apellido = estadoActual.apellido,
-                        correo = estadoActual.correo,
-                        clave = estadoActual.clave,
-                        direccion = estadoActual.direccion
+        if (validarFormulario()) {
+            viewModelScope.launch {
+                val estadoActual = _estado.value
+
+                val paisSeleccionado = _selectedCountry.value
+
+                // Nos aseguramos de que el país seleccionado exista antes de continuar.
+                if (paisSeleccionado == null) {
+                    _estado.update { it.copy(errores = it.errores.copy(direccion = "Error inesperado: el país no fue seleccionado.")) }
+                    return@launch
+                }
+
+                val nuevoUsuario = Usuario(
+                    nombre = estadoActual.nombre,
+                    apellido = estadoActual.apellido,
+                    correo = estadoActual.correo,
+                    clave = estadoActual.clave,
+                    direccion = paisSeleccionado.name.common
                 )
-                repository.insertar(nuevoUsuario)
+                //llama al metodo en el repositorio que usa la apo
+                val usuarioRegistrado = repository.registrarUsuario(nuevoUsuario)
 
-                notificationService.mostrarNotificacionRegistroExitoso()
-
+                if (usuarioRegistrado != null) {
+                    // Éxito: Muestra notificación y podrías hacer login automático
+                    notificationService.mostrarNotificacionRegistroExitoso()
+                    iniciarSesion(estadoActual.correo, estadoActual.clave)
+                } else {
+                    // Error: Muestra un mensaje al usuario
+                    _estado.update { it.copy(errores = it.errores.copy(nombre = "El registro falló. Inténtalo de nuevo.")) }
+                }
             }
         }
     }
 
-    fun cargarUsuarioActivo(correo: String) {
+    fun iniciarSesion(correo: String? = null, clave: String? = null) {
+        if (correo == null && !validarInicioSesion()) {
+            return
+        }
+
         viewModelScope.launch {
-            val usuarioEncontrado = repository.obtenerUsuarios().find { it.correo == correo }
-            _usuarioActivo.value = usuarioEncontrado
-            if (usuarioEncontrado != null) {
-                preferencias.guardarCorreoUsuarioActivo(correo)
+            val currentState = _estado.value
+            val loginRequest = LoginRequest(correo = currentState.correo, clave = currentState.clave)
+            val usuario = repository.iniciarSesion(loginRequest)
+
+            if (usuario != null) {
+                //_usuarioActivo.value = usuario
+                dataStore.guardarUsuarioActivo(usuario)
+                _estado.value = UsuarioUIState()
+            } else {
+                // Error: Muestra un mensaje al usuario
+                if (correo == null) {
+                    _estado.update { it.copy(errores = it.errores.copy(clave = "Correo o contraseña incorrectos.")) }
+                }
             }
         }
     }
+
     fun cerrarSesion() {
-        _usuarioActivo.value = null
+        //_usuarioActivo.value = null
         _estado.value = UsuarioUIState() // Limpia el estado del formulario
-        preferencias.guardarCorreoUsuarioActivo(null)
+        _countrySearchText.value = ""
+        _selectedCountry.value = null
+        viewModelScope.launch {
+            dataStore.limpiarUsuarioActivo()
+        }
     }
 
-    fun actualizarFotoPerfil(uri: Uri?) {
-        val usuario = _usuarioActivo.value ?: return
-        val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else null
+    //Función para pre-cargar el formulario con los datos actuales del usuario
+    fun cargarDatosParaEdicion() {
+        _usuarioActivo.value?.let { usuario ->
+            _estado.value = UsuarioUIState(
+                nombre = usuario.nombre,
+                apellido = usuario.apellido,
+                direccion = usuario.direccion
+            )
+        }
+    }
+
+    //Función para ejecutar la actualización con el backend
+    fun actualizarPerfil() {
+        val usuarioOriginal = _usuarioActivo.value ?: return
+        val estadoActualDelFormulario = _estado.value
+
+        // Crea una copia del usuario con los datos del formulario
+        val usuarioModificado = usuarioOriginal.copy(
+            nombre = estadoActualDelFormulario.nombre,
+            apellido = estadoActualDelFormulario.apellido,
+            direccion = estadoActualDelFormulario.direccion
+        )
+/*
+        // Crea un nuevo objeto de usuario con los datos modificados
+        val usuarioModificado = usuarioOriginal.copy(
+            nombre = estadoActual.nombre,
+            apellido = estadoActual.apellido,
+            direccion = estadoActual.direccion
+        )*/
+
+        _usuarioActivo.value = usuarioModificado
+
         viewModelScope.launch {
-            repository.actualizarFotoPerfil(usuario.id, uriPersistente?.toString())
-            cargarUsuarioActivo(usuario.correo)
+            /*// Llama al repositorio (que llama a la API)
+            val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+
+            if (resultado != null) {
+                // Si la API confirma la actualización, actualiza el estado local en la app
+                _usuarioActivo.value = resultado
+            } else {
+                // Opcional: Manejar el error si la actualización falla
+            }*/
+            try {
+                dataStore.guardarUsuarioActivo(usuarioModificado)
+                // Llama al repositorio para guardar en el backend/base de datos
+                val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+                if (resultado == null) {
+                    // Al actualizar _usuarioActivo, la pantalla Perfil.kt se redibuja.
+                    _usuarioActivo.value = usuarioOriginal
+                    // Opcional: También guarda en DataStore para mantener la sesión actualizada
+                    dataStore.guardarUsuarioActivo(usuarioOriginal)
+                } else {
+                    // Opcional: Manejar el error si la actualización falla
+                }
+            } catch (e: Exception) {
+                // Manejar el error
+                _usuarioActivo.value = usuarioOriginal
+                dataStore.guardarUsuarioActivo(usuarioOriginal)
+                e.printStackTrace()
+            }
+        }
+    }
+    //Funcion para cambiar contraseña
+    fun cambiarContrasena() {
+        val estadoActual = _estado.value
+        val usuario = _usuarioActivo.value ?: return
+
+        // 1. Validaciones
+        if (estadoActual.nuevaClave.length < 8) {
+            _estado.update { it.copy(errores = it.errores.copy(nuevaClave = "La nueva contraseña debe tener al menos 8 caracteres")) }
+            return
+        }
+        if (estadoActual.nuevaClave != estadoActual.confirmarNuevaClave) {
+            _estado.update { it.copy(errores = it.errores.copy(nuevaClave = "Las contraseñas no coinciden")) }
+            return
+        }
+
+        // 2. Limpiamos errores y ejecutamos la llamada a la API
+        _estado.update { it.copy(errores = UsuarioErrores()) }
+
+        viewModelScope.launch {
+            // Asumimos que tienes una función en tu repositorio para esto
+            // que llama a un endpoint como PUT /api/v1/users/{id}/change-password
+            val exito = repository.cambiarContrasena(
+                usuarioId = usuario.id,
+                claveActual = estadoActual.claveActual,
+                nuevaClave = estadoActual.nuevaClave
+            )
+
+            if (!exito) {
+                // Si el backend dice que la contraseña actual es incorrecta
+                _estado.update { it.copy(errores = it.errores.copy(claveActual = "La contraseña actual es incorrecta")) }
+            }
+            // Si tiene éxito, no necesitamos hacer nada más, la contraseña ya se cambió en el backend.
+        }
+    }
+    fun actualizarFotoPerfil(uri: Uri?) {
+        val usuarioOriginal = _usuarioActivo.value ?: return
+        if (uri == null) return
+        val uriPersistente = guardarCopiaLocal(uri)
+        val usuarioModificado = usuarioOriginal.copy(fotoPerfilUri = uriPersistente.toString())
+
+        _usuarioActivo.value = usuarioModificado
+
+        viewModelScope.launch {
+            try {
+                dataStore.guardarUsuarioActivo(usuarioModificado)
+
+                val resultadoDeAPI = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+
+                if (resultadoDeAPI == null) {
+                    _usuarioActivo.value = usuarioOriginal
+                    dataStore.guardarUsuarioActivo(usuarioOriginal)
+                }
+            } catch (e: Exception) {
+                _usuarioActivo.value = usuarioOriginal
+                dataStore.guardarUsuarioActivo(usuarioOriginal)
+                e.printStackTrace()
+            }
         }
     }
 

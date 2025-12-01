@@ -7,16 +7,27 @@ import android.content.Context
 import android.os.Build
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Repository.UsuarioRepository
+import com.example.loopieapp.Repository.CountryRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlin.getValue
 
 class LoopieApp : Application() {
     // Usamos 'lazy' para que la base de datos y el repositorio
     // solo se creen una vez, la primera vez que se necesiten.
     val database by lazy { AppDatabase.getDatabase(this) }
-    val usuarioRepository by lazy { UsuarioRepository(database.usuarioDao()) }
+    //val usuarioRepository by lazy { UsuarioRepository(database.usuarioDao()) }
+
+    val countryRepository by lazy { CountryRepository() }
 
     override fun onCreate() {
         super.onCreate()
         crearCanalNotificaciones()
+
+        CoroutineScope(Dispatchers.IO).launch {
+            countryRepository.getAllCountries()
+        }
     }
 
     private fun crearCanalNotificaciones() {
