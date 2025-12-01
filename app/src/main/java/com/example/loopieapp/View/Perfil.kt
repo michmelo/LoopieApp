@@ -11,6 +11,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.twotone.Storefront
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,6 +39,8 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import com.example.loopieapp.Components.CenterAlignedTopAppBarComponent
 import com.example.loopieapp.Components.ImagenInteligente
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 import com.example.loopieapp.Components.AppScreen
 import com.example.loopieapp.Components.Destinos
 import com.example.loopieapp.Model.AppDatabase
@@ -57,7 +60,9 @@ fun Perfil(
 ) {
     val usuario by viewModel.usuarioActivo.collectAsState()
     var mostrarDialogo by remember { mutableStateOf(false) } // Estado para controlar el diálogo
-
+    val pais by viewModel.paisDelUsuario.collectAsState()
+    val perfil by viewModel.perfilEnriquecido.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     // Carga los datos del usuario cuando la pantalla se muestra por primera vez
     /*LaunchedEffect(key1 = correoUsuario) {
@@ -96,6 +101,12 @@ fun Perfil(
         }
     }
 
+    val requestGalleryPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            pickImageLauncher.launch("image/*")
+        }
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBarComponent(
@@ -112,52 +123,103 @@ fun Perfil(
         ) {
             // Información del usuario
             item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
+                if (isLoading) {
                     Box(
-                        modifier = Modifier.clickable {pickImageLauncher.launch("image/*") }
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 64.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        val imagenUri = usuario?.fotoPerfilUri?.let { Uri.parse(it) }
-                        ImagenInteligente(
-                            imagenUri = imagenUri,
-                            modifier = Modifier
-                                .size(80.dp)
-                                .clip(CircleShape)
-                                .background(Color.LightGray)
-                        )
+                        CircularProgressIndicator()
                     }
-                    Spacer(modifier = Modifier.width(16.dp))
+                } else {
+                    usuario?.let { usuario ->
+                        Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                //Foto de perfil
+                                Box(
+                                    modifier = Modifier.clickable { pickImageLauncher.launch("image/*") }
+                                ) {
+                                    val imagenUri = usuario?.fotoPerfilUri?.let { Uri.parse(it) }
+                                    ImagenInteligente(
+                                        imagenUri = imagenUri,
+                                        modifier = Modifier
+                                            .size(80.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.LightGray)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
 
-                    Column {
-                        Text(
-                            text = usuario?.let { "${it.nombre} ${it.apellido}" } ?: "Cargando...",
-                            style = MaterialTheme.typography.headlineSmall,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = usuario?.correo ?: "cargando...",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Color.Gray
-                        )
+                                //Nombre, correo, badge
+                                Column (modifier = Modifier.weight(1f)){
+                                    Text(
+                                        text =  "${usuario.nombre} ${usuario.apellido}" ,
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = usuario.correo,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.Gray
+                                    )
+                                    Spacer(modifier = Modifier.height(8.dp))
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        // Badge de vendedor
-                        Card(
-                            colors = CardDefaults.cardColors(containerColor = Color(0xffe8f5e8))
-                        ) {
-                            Text(
-                                text = "Vendedor Verificado",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = Color(0xff2e7d32),
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                            )
+                                    // Badge de vendedor
+                                    Card(
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = Color(
+                                                0xffe8f5e8
+                                            )
+                                        )
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Verified,
+                                                contentDescription = "Vendedor Verificado",
+                                                tint = Color(0xFF2E7D32),
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                text = "Vendedor Verificado",
+                                                style = MaterialTheme.typography.labelLarge,
+                                                color = Color(0xFF2E7D32)
+                                            )
+                                        }
+                                    }
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        // Si encontramos el país, mostramos bandera.
+                                        pais?.let { p ->
+                                            AsyncImage(
+                                                model = p.flags.png, // La URL de la imagen de la bandera
+                                                contentDescription = "Bandera de ${p.name.common}",
+                                                modifier = Modifier
+                                                    .size(24.dp)
+                                                    .clip(CircleShape)
+                                                    .border(1.dp, Color.LightGray, CircleShape),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                        }
+                                        // Mostramos la dirección guardada en el usuario.
+                                        Text(
+                                            text = usuario.direccion,
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
+
             // Opciones para cambiar la imagen de perfil
             item {
                 Row(
@@ -207,7 +269,7 @@ fun Perfil(
                     titulo = "Panel de Vendedor",
                     descripcion = "Gestiona tus productos y ventas",
                     onClick = {
-                        val userEmail = usuario?.correo
+                        val userEmail = perfil?.first?.correo
                         if (userEmail != null) {
                             val rutaCompleta = Destinos.PANEL_VENDEDOR.route.replace("{correo}", userEmail)
                             navController.navigate(rutaCompleta)

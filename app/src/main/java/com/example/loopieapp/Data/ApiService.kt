@@ -13,54 +13,54 @@ import retrofit2.Response
 interface ApiService{
     // --- ENDPOINTS DE USUARIOS ---
     // GET /api/usuarios -> Obtiene todos los usuarios
-    @GET("v1/users")
+    @GET("api/v1/users")
     suspend fun getAllUsers(): Response<List<Usuario>>
 
     // GET /api/usuarios/{id} -> Obtiene un usuario por su ID
-    @GET("v1/users/{id}")
+    @GET("api/v1/users/{id}")
     suspend fun getUserById(@Path("id") id: Int): Response<Usuario>
 
     // GET /api/usuarios/correo/{correo} -> Obtiene un usuario por su CORREO
-    @GET("v1/users/correo/{correo}")
+    @GET("api/v1/users/correo/{correo}")
     suspend fun obtenerUsuarioPorCorreo(@Path("correo") correo: String): Response<Usuario>
 
     // POST /api/usuarios -> Crea un nuevo usuario
-    @POST("v1/users")
+    @POST("api/v1/users")
     suspend fun createUser(@Body user: Usuario): Response<Usuario>
 
     // PUT /api/usuarios/{id} -> Actualiza un usuario existente
-    @PUT("v1/users/{id}")
+    @PUT("api/v1/users/{id}")
     suspend fun updateUser(@Path("id") id: Int, @Body user: Usuario): Response<Usuario>
 
     // DELETE /api/usuarios/{id} -> Elimina un usuario
-    @DELETE("v1/users/{id}")
+    @DELETE("api/v1/users/{id}")
     suspend fun deleteUser(@Path("id") id: Int): Response<Unit>
 
 
     // --- ENDPOINTS DE PRODUCTOS ---
     // GET /api/productos -> Obtiene todos los productos
-    @GET("v1/products")
+    @GET("api/v1/products")
     suspend fun getAllProducts(): Response<List<Producto>>
 
     // GET /api/productos/{idProducto} -> Obtiene un producto por su ID
-    @GET("v1/products/{idProducto}")
+    @GET("api/v1/products/{idProducto}")
     suspend fun getProductById(@Path("idProducto") idProducto: Int): Response<Producto>
 
     // POST /api/productos -> Crea un nuevo producto
-    @POST("v1/products")
+    @POST("api/v1/products")
     suspend fun createProduct(@Body product: Producto): Response<Producto>
 
     // PUT /api/productos/{idProducto} -> Actualiza un producto existente
-    @PUT("v1/products/{idProducto}")
+    @PUT("api/v1/products/{idProducto}")
     suspend fun updateProduct(@Path("idProducto") idProducto: Int, @Body product: Producto): Response<Producto>
 
-    @PUT("v1/users/{id}/change-password")
+    @PUT("api/v1/users/{id}/change-password")
     suspend fun changePassword(
         @Path("id") id: Int,
         @Body request: ChangePasswordRequest): Response<Unit> // No esperamos que devuelva un cuerpo, solo un 200 OK
 
     // DELETE /api/productos/{idProducto} -> Elimina un producto
-    @DELETE("v1/products/{idProducto}")
+    @DELETE("api/v1/products/{idProducto}")
     suspend fun deleteProduct(@Path("idProducto") idProducto: Int): Response<Unit>
 
 }

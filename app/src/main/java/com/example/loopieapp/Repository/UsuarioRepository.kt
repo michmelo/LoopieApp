@@ -46,7 +46,6 @@ class UsuarioRepository (
     // Llama al endpoint GET /usuarios/{correo}
     suspend fun obtenerUsuarioPorCorreo(correo: String): Usuario? {
         try {
-            // ¡IMPORTANTE! Asumo que tienes un endpoint para esto. Si no, necesitarás crearlo.
             // Si usas ID, sería apiService.getUserById(id).
             val response = apiService.obtenerUsuarioPorCorreo(correo)
             if (response.isSuccessful) {

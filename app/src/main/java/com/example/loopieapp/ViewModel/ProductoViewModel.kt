@@ -122,14 +122,14 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
     }
 
     // CREATE - Crear nuevo producto
-    fun agregarProducto() : Boolean {
+    fun agregarProducto(onSuccess: () -> Unit) {
         val currentState = _uiState.value
         
         // Validaciones
         val errores = validarProducto(currentState)
         if (errores.nombre != null || errores.descripcion != null || errores.precio != null || errores.categoria != null || errores.stock != null || errores.rating != null || errores.imagen != null) {
             _uiState.update { it.copy(errores = errores) }
-            return false // Falla la validación, detenemos
+            return // Falla la validación, detenemos
         }
         
         viewModelScope.launch {
@@ -153,18 +153,22 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
                 if (productoCreado == null) {
                     obtenerProductos()
                     limpiarFormulario()
+                    onSuccess()
+                } else {
+                    _uiState.update { it.copy(errores = ProductoErrores(nombre = "El servidor no pudo crear el producto.")) }
                 }
             } catch (e: Exception) {
                 // Manejar error
                 _uiState.value = currentState.copy(
-                    isLoading = false,
                     errores = ProductoErrores(
                         nombre = "Error al crear el producto: ${e.message}"
                     )
                 )
+            } finally {
+                _uiState.update { it.copy(isLoading = false) } // Ocultamos el indicador de carga
             }
         }
-        return true // Se ha creado el producto
+        return // Se ha creado el producto
     }
 
     // READ - Buscar productos
@@ -172,7 +176,6 @@ class ProductoViewModel (application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
         _uiState.update { it.copy(isLoading = true) }
             try {
-
                 _productos.value = repository.obtenerProductos()
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(

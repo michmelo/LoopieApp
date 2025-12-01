@@ -185,9 +185,13 @@ fun PanelVendedor(
         FormularioProductoDialog(
             titulo = "Agregar Producto",
             onConfirmar = {
-                if (viewModel.agregarProducto()) {
-                    mostrarDialogoAgregar = false
-                }
+                viewModel.agregarProducto(
+                    onSuccess = {
+                        // Esta es la acción que se ejecuta si se guarda bien:
+                        // simplemente cierra el diálogo.
+                        mostrarDialogoAgregar = false
+                    }
+                )
             },
             onCancelar = {
                 mostrarDialogoAgregar = false
@@ -540,16 +544,21 @@ fun FormularioProductoDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     Button(
-                        onClick = onCancelar
+                        onClick = onCancelar,
+                        colors = ButtonDefaults.textButtonColors()
                     ) {
                         Text("Cancelar")
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Button(
                         onClick = onConfirmar,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xff847996))
+                        enabled = !productoUiState.isLoading
                     ) {
-                        Text("Guardar")
+                        if (productoUiState.isLoading) {
+                            CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Text(if (titulo.contains("Agregar")) "Agregar" else "Guardar Cambios")
+                        }
                     }
                 }
             }

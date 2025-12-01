@@ -7,7 +7,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 
 object RetrofitClient {
     //URL BASE DE la api
-    private const val BASE_URL = "http://192.168.1.83:8080/api/"
+    private const val BASE_URL = "http://192.168.1.83:8080/"
 
     //CONFIGURACIÓN DEL CLIENTE HTTP
     //Creamos un interceptor que registrará en el Logcat todas las peticiones y respuestas.

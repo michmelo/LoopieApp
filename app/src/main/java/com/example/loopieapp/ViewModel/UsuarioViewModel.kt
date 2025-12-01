@@ -26,7 +26,13 @@ import com.example.loopieapp.Data.models.Country
 import com.example.loopieapp.Model.AppDatabase
 import com.example.loopieapp.Repository.CountryRepository
 import com.example.loopieapp.Services.NotificationService
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlin.text.equals
+import kotlin.text.find
+import android.util.Log
 
 class UsuarioViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -60,8 +66,25 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     private val _countrySearchText = MutableStateFlow("")
     val countrySearchText: StateFlow<String> = _countrySearchText.asStateFlow()
 
+    private val _paisDelUsuario = MutableStateFlow<Country?>(null)
+    val paisDelUsuario: StateFlow<Country?> = _paisDelUsuario.asStateFlow()
+
     //private val _countryInfo = MutableStateFlow<Country?>(null)
     //val countryInfo: StateFlow<Country?> = _countryInfo.asStateFlow()
+
+    private val TAG = "UsuarioViewModel_DEBUG"
+
+    val perfilEnriquecido: StateFlow<Pair<Usuario, Country?>?> =
+        _usuarioActivo.combine(_allCountries) { usuario, paises ->
+            if (usuario != null) {
+                // Busca en la lista de todos los países el que coincida con la dirección del usuario.
+                val paisDelUsuario = paises.find { it.name.common.equals(usuario.direccion, ignoreCase = true) }
+                // Devuelve un par con el usuario y el país encontrado (o null si no lo encuentra).
+                Pair(usuario, paisDelUsuario)
+            } else {
+                null // Si no hay usuario activo, devuelve null.
+            }
+        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     private val _navegacionInicialRealizada = MutableStateFlow(false)
     val navegacionInicialRealizada: StateFlow<Boolean> = _navegacionInicialRealizada.asStateFlow()
@@ -76,37 +99,38 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         //val usuarioDao = AppDatabase.getDatabase(application).usuarioDao()
         //repository = UsuarioRepository(usuarioDao)
         //preferencias = PreferenciasUsuario(application)
-
         viewModelScope.launch {
-            viewModelScope.launch {
-                dataStore.getUsuarioActivo().collect { usuario ->
-                    _usuarioActivo.value = usuario
-                }
-            }
             try {
-                val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
+                //val correoGuardado = preferencias.obtenerCorreoUsuarioActivo()
+                Log.d(TAG, "INIT: Cargando países desde la red...")
                 val sortedCountries = countryRepository.getAllCountries().sortedBy { it.name.common }
-
                 _allCountries.value = sortedCountries
+                Log.d(TAG, "INIT: ¡PAÍSES CARGADOS! Total: ${sortedCountries.size}")
                 _filteredCountries.value = sortedCountries // La UI ahora tiene la lista completa
-
-                if (correoGuardado.isNullOrBlank()) {
-                    _isLoading.value = false //No hay sesión
-                } else{
-                    val usuarioEncontrado = repository.obtenerUsuarioPorCorreo(correoGuardado)
-                    _usuarioActivo.value = usuarioEncontrado
-                    _isLoading.value = false //Termina la carga
-                }
             } catch (e: Exception) {
                 e.printStackTrace()
-                _isLoading.value = false //Termina la carga
-
+                Log.e(TAG, "INIT: ERROR al cargar países", e)
             }
-            cargarPaises()
-        }
-        viewModelScope.launch {
-            countries.collect { allCountries ->
-                _filteredCountries.value = allCountries
+            dataStore.getUsuarioActivo().collect { usuario ->
+                Log.d(TAG, "COLLECT: DataStore emitió un nuevo usuario -> ${usuario?.nombre}")
+                _usuarioActivo.value = usuario // Actualiza el usuario
+
+                // PASO C: ¡LA LÓGICA MANUAL Y DIRECTA!
+                if (usuario != null) {
+                    Log.d(TAG, "BUSCANDO PAÍS: La dirección del usuario es -> '${usuario?.direccion}'")
+                    // Si hay un usuario, busca su país en la lista que ya cargamos.
+                    val paisEncontrado = _allCountries.value.find {
+                        it.name.common.equals(usuario.direccion, ignoreCase = true)
+                    }
+                    Log.d(TAG, "¡ÉXITO! País encontrado: ${paisEncontrado?.name?.common}. URL Bandera: ${paisEncontrado?.flags?.png}")
+                    _paisDelUsuario.value = paisEncontrado // Actualiza el StateFlow del país
+                } else {
+                    // Si no hay usuario (cierre de sesión), limpia el país.
+                    Log.e(TAG, "¡FALLO! No se encontró ningún país que coincida con la dirección '${usuario?.direccion}' en la lista de ${_allCountries.value.size} países.")
+                    _paisDelUsuario.value = null
+                    Log.d(TAG, "CIERRE DE SESIÓN: Usuario es nulo, limpiando país.")
+                }
+                _isLoading.value = false // La carga siempre termina aquí.
             }
         }
     }
@@ -197,12 +221,21 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         if (validarFormulario()) {
             viewModelScope.launch {
                 val estadoActual = _estado.value
+
+                val paisSeleccionado = _selectedCountry.value
+
+                // Nos aseguramos de que el país seleccionado exista antes de continuar.
+                if (paisSeleccionado == null) {
+                    _estado.update { it.copy(errores = it.errores.copy(direccion = "Error inesperado: el país no fue seleccionado.")) }
+                    return@launch
+                }
+
                 val nuevoUsuario = Usuario(
                     nombre = estadoActual.nombre,
                     apellido = estadoActual.apellido,
                     correo = estadoActual.correo,
                     clave = estadoActual.clave,
-                    direccion = estadoActual.direccion
+                    direccion = paisSeleccionado.name.common
                 )
                 //llama al metodo en el repositorio que usa la apo
                 val usuarioRegistrado = repository.registrarUsuario(nuevoUsuario)
@@ -230,9 +263,9 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
             val usuario = repository.iniciarSesion(loginRequest)
 
             if (usuario != null) {
-                _usuarioActivo.value = usuario
-                // Guarda la sesión en SharedPreferences
+                //_usuarioActivo.value = usuario
                 dataStore.guardarUsuarioActivo(usuario)
+                _estado.value = UsuarioUIState()
             } else {
                 // Error: Muestra un mensaje al usuario
                 if (correo == null) {
@@ -243,8 +276,10 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun cerrarSesion() {
-        _usuarioActivo.value = null
+        //_usuarioActivo.value = null
         _estado.value = UsuarioUIState() // Limpia el estado del formulario
+        _countrySearchText.value = ""
+        _selectedCountry.value = null
         viewModelScope.launch {
             dataStore.limpiarUsuarioActivo()
         }
@@ -297,7 +332,6 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
                 // Llama al repositorio para guardar en el backend/base de datos
                 val resultado = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
                 if (resultado == null) {
-                    // --- ¡ESTE ES EL PASO CLAVE PARA LA ACTUALIZACIÓN VISUAL! ---
                     // Al actualizar _usuarioActivo, la pantalla Perfil.kt se redibuja.
                     _usuarioActivo.value = usuarioOriginal
                     // Opcional: También guarda en DataStore para mantener la sesión actualizada
@@ -348,14 +382,27 @@ class UsuarioViewModel(application: Application) : AndroidViewModel(application)
         }
     }
     fun actualizarFotoPerfil(uri: Uri?) {
-        val usuario = _usuarioActivo.value ?: return
-        val uriPersistente = if (uri != null) guardarCopiaLocal(uri) else "".toUri()
+        val usuarioOriginal = _usuarioActivo.value ?: return
+        if (uri == null) return
+        val uriPersistente = guardarCopiaLocal(uri)
+        val usuarioModificado = usuarioOriginal.copy(fotoPerfilUri = uriPersistente.toString())
+
+        _usuarioActivo.value = usuarioModificado
 
         viewModelScope.launch {
-            val usuarioActualizado = usuario.copy(fotoPerfilUri = uriPersistente.toString())
-            val resultado = repository.actualizarUsuario(usuario.id,usuarioActualizado)
-            if (resultado != null) {
-                _usuarioActivo.value = resultado
+            try {
+                dataStore.guardarUsuarioActivo(usuarioModificado)
+
+                val resultadoDeAPI = repository.actualizarUsuario(usuarioOriginal.id, usuarioModificado)
+
+                if (resultadoDeAPI == null) {
+                    _usuarioActivo.value = usuarioOriginal
+                    dataStore.guardarUsuarioActivo(usuarioOriginal)
+                }
+            } catch (e: Exception) {
+                _usuarioActivo.value = usuarioOriginal
+                dataStore.guardarUsuarioActivo(usuarioOriginal)
+                e.printStackTrace()
             }
         }
     }
