@@ -125,16 +125,55 @@ Desde la perspectiva técnica, el proyecto integra prácticas modernas de desarr
 | [Michelle Melo] | Desarrollador Frontend y Backend| UI, Compose, validaciones | Persistencia, lógica, testing |
 
 ---
+## API Endpoints Utilizados
+
+La aplicación consume una API REST propia para gestionar usuarios y productos. La URL base configurada es `http://[TU_IP_LOCAL]:8080/`.
+
+### Endpoints de Usuarios (`/api/v1/users`)
+| Método | Ruta | Descripción |
+|:--- |:--- |:---|
+| **POST** | `/` | Registra un nuevo usuario. |
+| **POST** | `/login` | Autentica a un usuario y devuelve sus datos. (*Asumido*) |
+| **GET** | `/{id}` | Obtiene los datos de un usuario por su ID. |
+| **GET** | `/correo/{correo}` | Obtiene un usuario por su correo electrónico. |
+| **PUT** | `/{id}` | Actualiza los datos de un usuario (perfil). |
+| **PUT** | `/{id}/change-password` | Cambia la contraseña de un usuario. |
+| **DELETE** | `/{id}` | Elimina un usuario. |
+
+### Endpoints de Productos (`/api/v1/products`)
+| Método | Ruta | Descripción |
+|:--- |:--- |:---|
+| **POST** | `/` | Crea un nuevo producto. |
+| **GET** | `/` | Obtiene la lista de todos los productos. |
+| **GET** | `/{idProducto}` | Obtiene un producto por su ID. |
+| **PUT** | `/{idProducto}` | Actualiza un producto existente. |
+| **DELETE** | `/{idProducto}` | Elimina un producto. |
+
+### Endpoints de Países (API Externa)
+| Método | Ruta | Descripción |
+|:--- |:--- |:---|
+| **GET** | `https://restcountries.com/v3.1/all` | Obtiene la lista de todos los países. |
+
 
 ## Ejecución del proyecto
 
 **Requisitos previos:**
-- Android Studio Flamingo o superior  
+- Android Studio Iguana | 2023.2.1 o superior 
 - Gradle 8+  
 - SDK mínimo 26  
-- Emulador o dispositivo físico con Android 8+
+- - JDK 17 o superior
+- Emulador o dispositivo físico con Android 8+ (API 26) o superior.
 
 **Ejecución:**
 1. Clonar el repositorio:  
    ```bash
    git clone https://github.com/michmelo/LoopieApp.git
+2. **Abrir en Android Studio:**
+   - Abre Android Studio.
+   - Selecciona `Open` y navega hasta la carpeta `LoopieApp` que acabas de clonar.
+   - Espera a que Gradle sincronice el proyecto.
+3. **Configurar la IP del Backend:**
+   - **Importante:** La aplicación necesita conectarse a tu API REST local. Debes configurar la IP correcta.
+   - Abre el archivo `app/src/main/java/com/example/loopieapp/Data/RetrofitClient.kt`.
+   - Modifica la constante `BASE_URL` con la dirección IP de la máquina donde se ejecuta tu backend. Asegúrate de que tu teléfono o emulador estén en la misma red WiFi.
+     

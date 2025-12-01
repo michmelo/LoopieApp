@@ -48,6 +48,23 @@ android {
             excludes += "META-INF/io.netty.versions.properties"
         }
     }
+
+    signingConfigs {
+
+        release {
+            storeFile file("loopie_release.jks")
+            storePassword "mmelo1884"
+            keyAlias "loopiekey"
+            keyPassword "mmelo1884
+    }
+
+    buildTypes {
+
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.release
+        }
+    }
 }
 val nav_version = "2.7.7"
 
